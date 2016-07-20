@@ -1,0 +1,24 @@
+#!/bin/bash
+
+startdir=$PWD
+
+basedir=$(echo $startdir | sed 's/\//\\\//g')
+
+grep -q "#define BASEDIR \"filebsd\"" $startdir/include/workstation.h.in
+if [ $? == 0 ]; then
+   sed "s/filebsd/$basedir/g" $startdir/include/workstation.h.in > $startdir/include/workstation.h
+fi
+
+if [ "$1" == "new" ]; then
+   grep -q "#define OFFLINEVER" $startdir/include/OfflineInclude.h.in
+   if [ $? == 0 ]; then
+      sed "s/OFFLINEVER/OFFLINENEW/g" $startdir/include/OfflineInclude.h.in > $startdir/include/OfflineInclude.h
+   fi
+else
+   grep -q "#define OFFLINEVER" $startdir/include/OfflineInclude.h.in
+   if [ $? == 0 ]; then
+      sed "s/OFFLINEVER/OFFLINEOLD/g" $startdir/include/OfflineInclude.h.in > $startdir/include/OfflineInclude.h
+   fi
+fi
+
+exit 0

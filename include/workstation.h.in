@@ -1,0 +1,9 @@
+#ifndef _WORKSTATION_H_
+#define _WORKSTATION_H_
+
+#define BASEDIR "filebsd"
+
+std::string IntToStr(int nr);
+std::string DblToStr(double nr);
+
+#endif
