@@ -14,7 +14,7 @@ elif [ "$1" == "new" ]; then
    cd $newdir
    ./offline_devel.sh aperc
    echo "To setup environmental variables, use:"
-   echo "   source /data0/gkukec/Programi/offline-trunk/env_offline.sh"
+   echo "   source $newdir/env_offline.sh"
 else
    echo "No arguments supplied (old/new)."
 fi

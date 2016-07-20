@@ -4,6 +4,7 @@ startdir=$PWD
 
 basedir=$(echo $startdir | sed 's/\//\\\//g')
 
+# Preparing the workstation.h and OfflineInclude.h files
 grep -q "#define BASEDIR \"filebsd\"" $startdir/include/workstation.h.in
 if [ $? == 0 ]; then
    sed "s/filebsd/$basedir/g" $startdir/include/workstation.h.in > $startdir/include/workstation.h
@@ -14,11 +15,21 @@ if [ "$1" == "new" ]; then
    if [ $? == 0 ]; then
       sed "s/OFFLINEVER/OFFLINENEW/g" $startdir/include/OfflineInclude.h.in > $startdir/include/OfflineInclude.h
    fi
-else
+   # Preparing the environment variables for Offline
+   $startdir/setup/offline_setup.sh $1
+
+   echo "Program has been set for a new/trunk version of Offline."
+elif [ "$1" == "old" ]; then
    grep -q "#define OFFLINEVER" $startdir/include/OfflineInclude.h.in
    if [ $? == 0 ]; then
       sed "s/OFFLINEVER/OFFLINEOLD/g" $startdir/include/OfflineInclude.h.in > $startdir/include/OfflineInclude.h
    fi
+   # Preparing the environment variables for Offline
+   $startdir/setup/offline_setup.sh $1
+
+   echo "Program has been set for an old/development version of Offline."
+else
+   echo "No arguments have been used. Please use old or new, depending if version of Offline is old/development or new/trunk."
 fi
 
 exit 0
