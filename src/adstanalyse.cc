@@ -25,6 +25,7 @@ AdstAnalyseTool::AdstAnalyseTool()
    shfootlimit = 0;
    pointcnt = 0;
    btemp = SUBPLOT;
+   readevent = 0;
 
    for(int i = 0; i < ALLEYES; i++)
       eyevalid[i] = 0;
@@ -38,6 +39,42 @@ AdstAnalyseTool::~AdstAnalyseTool()
 // ------------------------------------------------------------------------------------------------------
 
 // User given control to define type of analysis --------------------------------------------------------
+//    Before using the Hello option, select if we want to use the program on a specific event or on all events
+void AdstAnalyseTool::ReadOption()
+{
+   if(fFile->GetNEvents() == 1)
+   {
+      readopt = 1;
+      readevent = 0;
+      return;
+   }
+
+   cout << "# Entering function AdstAnalyseTool::ReadOption()..." << endl;
+
+   cout << " The opened file has " << fFile->GetNEvents() << " events. Read all of them (0) or select a specific event (1)? ";
+   cin >> readopt;
+
+   while( (readopt != 0) && (readopt != 1) )
+   {
+      cout << " Invalid choice of read options. Please select again (0|1): ";
+      cin >> readopt;
+   }
+
+   if(readopt == 1)
+   {
+      cout << " Which event do you want to read (from 0 to " << fFile->GetNEvents()-1 << ")? ";
+      cin >> readevent;
+
+      while( readevent >= fFile->GetNEvents() )
+      {
+         cout << "Invalid choice of event. Please select again (from 0 to " << fFile->GetNEvents()-1 << "): ";
+	 cin >> readevent;
+      }
+   }
+   else if(readopt == 0)
+      readevent = -1;
+}
+
 //    Gives quick information on the program and gives possibilities for the analysis
 void AdstAnalyseTool::Hello()
 {
@@ -222,7 +259,7 @@ string AdstAnalyseTool::GetActiveTanks()
    cout << "# Entering function AdstAnalyseTool::GetActiveTanks()..." << endl;
    string stemp;
 
-   fFile->ReadEvent(0);
+   fFile->ReadEvent(readevent);
 
    SDEvent &sdevt = fRecEvent->GetSDEvent();
    nracttanks = sdevt.GetNumberOfCandidates();
@@ -268,24 +305,29 @@ void AdstAnalyseTool::GetActiveEyes()
    double tempmax;
    int iMax;
 
-   fFile->ReadEvent(0);
+   fFile->ReadEvent(readevent);
 
    nracteyes = fRecEvent->GetNEyes();
-//   cout << "Number of eyes = " << nracteyes << endl;
+//cout << " Number of eyes = " << nracteyes << endl;
    vector<FDEvent> fdevt = fRecEvent->GetFDEvents();
+//cout << " fdevt.size() = " << fdevt.size() << endl;
 
    if( acteyes.size() != 0 )
       acteyes.erase(acteyes.begin(),acteyes.end());
 
+   for(int i = 0; i < ALLEYES; i++)
+      eyevalid[i] = 0;
+
    for(int i = 0; i < fdevt.size(); i++)
    {
       acteyes.push_back(fdevt[i].GetFdRecShower());
+//cout << " Eye " << fdevt[i].GetEyeId() << ": Energy = " << acteyes[i].GetEnergy() << " eV, Track = " << acteyes[i].GetTrackLength() << " g/cm^2" << endl;
 
       if( (acteyes[i].GetEnergy() == 0) || (acteyes[i].GetTrackLength() == 0) )
-         eyevalid[i] = -1;
+         eyevalid[fdevt[i].GetEyeId()-1] = -1;
       else
       {
-         eyevalid[i] = 1;
+         eyevalid[fdevt[i].GetEyeId()-1] = 1;
 //         cout << "Eye " << i << " has ID = " << fdevt[i].GetEyeId() << ", energy = " << acteyes[i].GetEnergy() << " eV, track length = " << acteyes[i].GetTrackLength() << " g/cm2, track min = " << acteyes[i].GetXTrackMin() << ", track max = " << acteyes[i].GetXTrackMax() << endl;
       }
 
@@ -294,14 +336,17 @@ void AdstAnalyseTool::GetActiveEyes()
       else
       {
 	 if(acteyes[i].GetTrackLength() > tempmax)
-	    iMax = i;
+	    iMax = fdevt[i].GetEyeId();
          tempmax = TMath::Max(tempmax, acteyes[i].GetTrackLength());
       }
    }
 
    cout << "Maximum track length is = " << tempmax << " g/cm2 (from eye " << iMax << ")" << endl;
 
-   cout << "Bool set: " << eyevalid[0] << ", " << eyevalid[1] << ", " << eyevalid[2] << ", " << eyevalid[3] << endl;
+//   cout << "Bool set: ";
+//   for(int i = 0; i < ALLEYES; i++)
+//      cout << eyevalid[i] << ", ";
+//   cout << endl;
 }
 
 // Gives a list of all active eyes
@@ -1013,6 +1058,14 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
    derr = new double[2];
    cordist = new double;
 
+   if(argtype == 0)
+      fFile->ReadEvent(infilenr);
+
+   cout << "Eye status: ";
+   for(int i = 0; i < ALLEYES; i++)
+      cout << eyevalid[i] << ", ";
+   cout << endl;
+
    // Open up a file to print out results in an ASCII file
    if(infilenr == 0)
    {
@@ -1062,7 +1115,7 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
             histf->Fill(*dtemp);
 	 }
 
-	 if( infilenr+1 == tarnames.size() )
+	 if( infilenr+1 == evtcount )
 	 {
             histf->GetXaxis()->SetRangeUser(xrange[0]-0.1*(xrange[1]-xrange[0]),xrange[1]+0.1*(xrange[1]-xrange[0]));
 	    *stemp = ";" + directivedesc[seldir[0]] + ";Number of events";
@@ -1086,7 +1139,7 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
 	    *yerr = 0;
 	 *itemp = 0;
 
-         for(int i = 0; i < acteyes.size(); i++)
+         for(int i = 0; i < ALLEYES; i++)
          {
 	    if(eyevalid[i] != 0)
 	    {
@@ -1121,7 +1174,7 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
             histf->Fill(*dtemp);
 	 }
 
-	 if( infilenr+1 == tarnames.size() )
+	 if( infilenr+1 == evtcount )
 	 {
             histf->GetXaxis()->SetRangeUser(xrange[0]-0.1*(xrange[1]-xrange[0]),xrange[1]+0.1*(xrange[1]-xrange[0]));
 	    *stemp = ";" + directivedesc[seldir[0]] + ";Number of events";
@@ -1174,7 +1227,7 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
             histf->Fill(*dtemp);
 	 }
 
-	 if( infilenr+1 == tarnames.size() )
+	 if( infilenr+1 == evtcount )
 	 {
             histf->GetXaxis()->SetRangeUser(xrange[0]-0.1*(xrange[1]-xrange[0]),xrange[1]+0.1*(xrange[1]-xrange[0]));
             *stemp = ";Depth of " + IntToStr((int)(shfootlimit*100)) + directivedesc[seldir[0]] + ";Number of events";
@@ -1208,7 +1261,7 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
          cout << "The value to plot " << *y << endl;
          histf->Fill(*y);
 
-	 if( infilenr+1 == tarnames.size() )
+	 if( infilenr+1 == evtcount )
 	 {
             histf->GetXaxis()->SetRangeUser(xrange[0]-0.1*(xrange[1]-xrange[0]),xrange[1]+0.1*(xrange[1]-xrange[0]));
 	    *stemp = ";" + directivedesc[seldir[0]] + ";Number of events";
@@ -1242,7 +1295,7 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
          cout << "The value to plot " << *y << endl;
          histf->Fill(*y);
 
-	 if( infilenr+1 == tarnames.size() )
+	 if( infilenr+1 == evtcount )
 	 {
             histf->GetXaxis()->SetRangeUser(xrange[0]-0.1*(xrange[1]-xrange[0]),xrange[1]+0.1*(xrange[1]-xrange[0]));
 	    *stemp = ";" + directivedesc[seldir[0]] + ";Number of events";
@@ -1338,7 +1391,7 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
             histf->Fill(*dtemp);
 	 }
 
-	 if( infilenr+1 == tarnames.size() )
+	 if( infilenr+1 == evtcount )
 	 {
             histf->GetXaxis()->SetRangeUser(xrange[0]-0.1*(xrange[1]-xrange[0]),xrange[1]+0.1*(xrange[1]-xrange[0]));
 	    *stemp = ";" + directivedesc[seldir[0]] + ";Number of events";
@@ -1403,7 +1456,7 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
             else *yerr = 0;
             *itemp = 0;
 
-            for(int i = 0; i < acteyes.size(); i++)
+            for(int i = 0; i < ALLEYES; i++)
             {
                if(eyevalid[i] != 0)
                {
@@ -1728,7 +1781,7 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
       }// end of plot selection
 
       // Saving the final plot, when we finish with the last file
-      if( infilenr+1 == tarnames.size() )
+      if( infilenr+1 == evtcount )
       {
          if( (directivetype[seldir[0]] == 'E') || (directivetype[seldir[1]] == 'E') )
 	 {

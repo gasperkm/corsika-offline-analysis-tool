@@ -25,7 +25,7 @@
 #include "OfflineInclude.h"
 
 #define SUBPLOT true
-#define ALLEYES 4
+#define ALLEYES 5
 
 class AdstAnalyseTool {
 public:
@@ -33,12 +33,19 @@ public:
    AdstAnalyseTool();
    virtual ~AdstAnalyseTool();
 
+   // Determines if starting file is .root or .tar.gz, number of events/files
+   int argtype;
+   int evtcount;
+
    // Reconstructed event variables (from the ADST format)
    RecEvent *fRecEvent;
    RecEventFile *fFile;
    DetectorGeometry *fDetGeo;
 
    // Hello and instructions function
+   void ReadOption();
+   int readopt;
+   int readevent;
    void Hello();
 
    // Output file for additional data analysis

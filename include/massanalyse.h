@@ -23,7 +23,7 @@
 #include "TColor.h"
 
 #define SUBPLOT true
-#define ALLEYES 4
+#define ALLEYES 5
 
 class MassAnalyseTool {
 public:

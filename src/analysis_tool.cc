@@ -68,12 +68,14 @@ int main(int argc, char **argv)
    MassAnalyseTool *mantool = new MassAnalyseTool();
    AdstAnalyseTool *aantool = new AdstAnalyseTool();
 
-   // if the argument is -f, only one file is supplied (argtype = 0)
+   // if the argument is -f, only one file is supplied (argtype = 0): But this file can have one or more events
    // if the argument is -t, the files are saved into a tar-ball (argtype = 1)
    argtype = 0;
 
    int itemp;
    string stemp;
+
+//   printf("1\n");
 
    if(argc > 1)
    {
@@ -121,7 +123,10 @@ int main(int argc, char **argv)
       return 1;
    }
 
-   // Situation, where we only have one input ROOT analysis file
+   if(fileformat == 2)
+      aantool->argtype = argtype;
+
+   // Situation, where we only have one input ROOT analysis file (that could have multiple events)
    if(argtype == 0)
    {
       // Format is massanalysis
@@ -152,14 +157,59 @@ int main(int argc, char **argv)
 	 aantool->fFile->SetBuffers(&(aantool->fRecEvent));
 	 aantool->fFile->ReadDetectorGeometry(*(aantool->fDetGeo));
 
-         aantool->filesel = 0;
-	 aantool->GetActiveEyes();
-         aantool->Hello();
-         aantool->RunDirective(0);
+	 aantool->ReadOption();  // Checks how many events are stored in the ADST file
+
+	 if(aantool->readopt == 1)
+	 {
+            aantool->filesel = 0;
+	    aantool->GetActiveEyes();
+            aantool->Hello();
+            aantool->RunDirective(aantool->readevent);
+	 }
+	 else if(aantool->readopt == 0)
+         {
+            aantool->filesel = 1;
+            aantool->Hello();
+            // Define all possible plotting types (will then delete the ones that are not used)
+            aantool->gr = new TGraph(aantool->fFile->GetNEvents());
+            aantool->grErr = new TGraphErrors(aantool->fFile->GetNEvents());
+            aantool->grAsymmErr = new TGraphAsymmErrors(aantool->fFile->GetNEvents());
+            aantool->histf = new TH1F("th1","",50,1,1);
+            aantool->histf->SetBit(TH1::kCanRebin);
+            aantool->hist2f = new TH2F("th2","",sqrt(aantool->fFile->GetNEvents()),0,4000,sqrt(aantool->fFile->GetNEvents()),0,4000);
+            // Initiate the ranges for plots
+            aantool->InitRanges();
+	    aantool->evtcount = aantool->fFile->GetNEvents();
+
+	    // TODO: Multiple analysis
+	    for(int i = 0; i < aantool->evtcount; i++)
+	    {
+	       cout << "Event number = " << i << endl;
+               aantool->readevent = i;
+               aantool->GetActiveTanks();
+               aantool->GetActiveEyes();
+               aantool->RunDirective(aantool->readevent);
+	    }
+/*            for(int i = 0; i < aantool->tarnames.size(); i++)
+            {
+               aantool->SetAnalysisFilename((char*)aantool->tarnames[i].c_str());
+
+	       aantool->fFile = new RecEventFile((aantool->GetAnalysisFilename()).c_str(), RecEventFile::eRead);
+	       aantool->fFile->SetBuffers(&(aantool->fRecEvent));
+	       aantool->fFile->ReadDetectorGeometry(*(aantool->fDetGeo));
+               aantool->GetActiveTanks();
+               aantool->GetActiveEyes();
+               
+               aantool->RunDirective(i);
+               cout << "################ Finish RunDirective (" << (aantool->GetAnalysisFilename()) << ")" << endl;
+
+               aantool->fFile->Close();
+            }*/
+	 }
          cout << "################ Finish RunDirective (" << (aantool->GetAnalysisFilename()) << ")" << endl;
 	 
 	 aantool->fFile->Close();
-         delete aantool;
+        // delete aantool;
       }
    }
    // Situation, where we have multiple input ROOT analysis files saved in a tar-ball
@@ -249,8 +299,9 @@ int main(int argc, char **argv)
          aantool->hist2f = new TH2F("th2","",sqrt(aantool->tarnames.size()),0,4000,sqrt(aantool->tarnames.size()),0,4000);
          // Initiate the ranges for plots
          aantool->InitRanges();
+	 aantool->evtcount = aantool->tarnames.size();
 
-         for(int i = 0; i < aantool->tarnames.size(); i++)
+         for(int i = 0; i < aantool->evtcount; i++)
          {
             aantool->SetAnalysisFilename((char*)aantool->tarnames[i].c_str());
 
