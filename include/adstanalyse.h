@@ -178,6 +178,12 @@ public:
    double xmaxlimit;
    int slantset;
    double shfootlimit;
+   double distlimit;
+
+   // Values for tank times (nsec) and the hottest station value
+   std::vector<double> sdtimesec;
+   std::vector<double> sdtimensec;
+   double sdhotnsec;
 
    // Point counter for plot
    int pointcnt;

@@ -23,6 +23,7 @@ AdstAnalyseTool::AdstAnalyseTool()
    xmaxlimit = 0;
    slantset = -1;
    shfootlimit = 0;
+   distlimit = 0;
    pointcnt = 0;
    btemp = SUBPLOT;
    readevent = 0;
@@ -495,6 +496,12 @@ int AdstAnalyseTool::RunDirective(int infilenr)
             cin >> shfootlimit;
             cout << "------------------------------------------------------------------------------------" << endl;
          }
+	 if( directiveaffil[itemp[0]] == "tankvem" )
+	 {
+            cout << " Enter maximal distance of SD tank from shower core (set to 0, to select all tanks): ";
+            cin >> distlimit;
+            cout << "------------------------------------------------------------------------------------" << endl;
+	 }
       }
       else if((itemp[1] != -1) && (itemp[2] == -1) && (infilenr == 0))
       {
@@ -513,6 +520,12 @@ int AdstAnalyseTool::RunDirective(int infilenr)
             cin >> shfootlimit;
             cout << "------------------------------------------------------------------------------------" << endl;
          }
+	 if( (directiveaffil[itemp[0]] == "tankvem") || (directiveaffil[itemp[1]] == "tankvem") )
+	 {
+            cout << " Enter maximal distance of SD tank from shower core (set to 0, to select all tanks): ";
+            cin >> distlimit;
+            cout << "------------------------------------------------------------------------------------" << endl;
+	 }
       }
 
       // Run directive for the multiple file mode
@@ -1069,8 +1082,16 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
    // Open up a file to print out results in an ASCII file
    if(infilenr == 0)
    {
-      *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_multi" +  + ".dat";
-      outdata.open((*stemp).c_str(), ofstream::trunc | ofstream::out);
+      if( (seldir[0] != -1) && (seldir[1] == -1) && (seldir[2] == -1) && (nrdirs == 1) )
+      {
+         *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_multi" +  + ".dat";
+         outdata.open((*stemp).c_str(), ofstream::trunc | ofstream::out);
+      }
+      else if( (seldir[0] != -1) && (seldir[1] != -1) && (seldir[2] == -1) && (nrdirs == 2) )
+      {
+         *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_vs_" + directive[seldir[1]] + "_multi" +  + ".dat";
+         outdata.open((*stemp).c_str(), ofstream::trunc | ofstream::out);
+      }
    }
 
    // Integer values of the selected directives
@@ -1309,74 +1330,54 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
             c1->SaveAs((*stemp).c_str());
 	 }
       }
-/*      // Getting separate tank calculation (risetime)
-      if( directiveaffil[seldir[0]] == "tankvem" )	// TODO: Early and late risetimes (Slightly working)
+      // Getting separate tank calculation (risetime, risetimeearly, risetimelate)
+      if( directiveaffil[seldir[0]] == "tankvem" )
       {
+	 *y = 10.e+31;
 	 *itemp = 0;
-	 *yerr = 0;
-	 *cordist = 1.e+40;
 
-         if( (directive[seldir[0]] == "risetimeearly") || (directive[seldir[0]] == "risetimelate") )
+         if( sdtimesec.size() != 0 )
+            sdtimesec.erase(sdtimesec.begin(),sdtimesec.end());
+         if( sdtimensec.size() != 0 )
+            sdtimensec.erase(sdtimensec.begin(),sdtimensec.end());
+
+         for(int i = 0; i < acttanks.size(); i++)
 	 {
-            for(int i = 0; i < nracttanks; i++)
-            {
-               showtankdata->SetBranchAddress("distance", &etemp);
-               showtankdata->GetEntry(i);
+	    if(acttanks[i].GetId() < 90000)
+	    {
+	       sdtimesec.push_back(acttanks[i].GetTimeSecond());
+	       sdtimensec.push_back(acttanks[i].GetTimeNSecond());
 
-	       if(etemp.val < *cordist)
+//               printf("Second: %lf, NSecond: %lf, Distance: %lf\n", acttanks[i].GetTimeSecond(), acttanks[i].GetTimeNSecond(), acttanks[i].GetSPDistance());
+
+               if( acttanks[i].GetSPDistance() < *y )
 	       {
-	          *cordist = etemp.val;
-		  *nrpoints = i;
-	       }
-
-	       cout << "Distance from core = " << etemp.val << endl;
+	          *y = acttanks[i].GetSPDistance();
+	          sdhotnsec = sdtimensec[i];
+               }
 	    }
-
-            showtankdata->SetBranchAddress("starttime", &stime);
-            showtankdata->GetEntry(*nrpoints);
-
-//	    cout << "Core tank " << *nrpoints << " at distance " << *cordist << " has a timestamp of " << stime.nsec << endl;
-	    *cordist = stime.nsec;
 	 }
 
-         for(int i = 0; i < nracttanks; i++)
+	 printf("Hottest tank time: %lf\n", sdhotnsec);
+
+	 *y = 0;
+
+         for(int i = 0; i < acttanks.size(); i++)
          {
-            if( xvalue.size() != 0 )
-               xvalue.erase(xvalue.begin(),xvalue.end());
-            if( yvalue.size() != 0 )
-	       yvalue.erase(yvalue.begin(),yvalue.end());
-
-            showtankdata->SetBranchAddress("starttime", &stime);
-            showtankdata->GetEntry(i);
-
-            GetTankTree(acttanks[i]);
-            cout << "Active tank: " << acttanks[i] << endl;
-
-            if( directive[seldir[0]] == "risetimeearly" )
+	    if(acttanks[i].GetId() < 90000)
 	    {
-	       if(stime.nsec < *cordist)
- 	          GetRisetime(i, stime.nsec, seldir, infilenr, itemp, yerr);
-	       else if(stime.nsec == *cordist)
-	          cout << "Tank " << i << " not used for early risetime calculations (tank closest to core)." << endl;
-	       else
-	          cout << setprecision(9) << "Tank " << i << " not used for early risetime calculations (" << stime.nsec << " >= " << *cordist << ")." << endl;
-	    }
-            else if( directive[seldir[0]] == "risetimelate" )
-	    {
-	       if(stime.nsec > *cordist)
-	          GetRisetime(i, stime.nsec, seldir, infilenr, itemp, yerr);
-	       else if(stime.nsec == *cordist)
-	          cout << "Tank " << i << " not used for early risetime calculations (tank closest to core)." << endl;
-	       else
-	          cout << setprecision(9) << "Tank " << i << " not used for late risetime calculations (" << stime.nsec << " <= " << *cordist << ")." << endl;
-	    }
-	    else
-	       GetRisetime(i, stime.nsec, seldir, infilenr, itemp, yerr);
-	 }
+               cout << "Active tank: " << acttanks[i].GetId() << endl;
 
-         if( (nracttanks > 0) && (*itemp > 0) )
+               if( (distlimit != 0 ) && (acttanks[i].GetSPDistance() <= distlimit) )
+                  GetData(sepdir, seldir, "Xaxis", y, yerr, itemp, i);
+	       else if( distlimit == 0 )
+                  GetData(sepdir, seldir, "Xaxis", y, yerr, itemp, i);
+	    }
+         }
+
+         if(acttanks.size() > 0)
 	 {
-            *dtemp = *yerr/(double)*itemp;
+            *dtemp = *y/(double)*itemp;
 
 	    // Write out to data file for additional analysis (histogram bin widths)
 	    outdata << *dtemp << endl;
@@ -1404,7 +1405,7 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
 	    *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_multi" + ".C";
             c1->SaveAs((*stemp).c_str());
 	 }
-      }*/
+      }
    }
    // Scatter plot
    else if( (seldir[0] != -1) && (seldir[1] != -1) && (seldir[2] == -1) && (nrdirs == 2) )
@@ -1439,11 +1440,17 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
 	       {
                   *x = *x/(double)*itemp;
                   *xerr = *xerr/(double)*itemp;
+
+                  // Write out to data file for additional analysis (histogram bin widths)
+                  outdata << *x << "\t" << *xerr << "\t" << *xerr << "\t";
 	       }
 	       else
 	       {
                   *y = *y/(double)*itemp;
                   *yerr = *yerr/(double)*itemp;
+
+                  // Write out to data file for additional analysis (histogram bin widths)
+                  outdata << *y << "\t" << *yerr << "\t" << *yerr << endl;
 	       }
             }
          }
@@ -1495,6 +1502,9 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
                         *x = *x/(double)*itemp;
                         *xerr = *xerr/(double)*itemp;
 	             }
+
+                  // Write out to data file for additional analysis (histogram bin widths)
+                  outdata << *x << "\t" << *xerr << "\t" << *xerr << "\t";
 //	          }
 	       }
 	       else
@@ -1516,6 +1526,9 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
                         *y = *y/(double)*itemp;
                         *yerr = *yerr/(double)*itemp;
 	             }
+
+                  // Write out to data file for additional analysis (histogram bin widths)
+                  outdata << *y << "\t" << *yerr << "\t" << *yerr << endl;
 //	          }
 	       }
             }
@@ -1560,13 +1573,21 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
 		  else
 */                     *x = *x/(double)*itemp;
 
+                  // Write out to data file for additional analysis (histogram bin widths)
+                  outdata << *x << "\t";
+
 		  if(directive[seldir[k]] == "shfoot")
 		  {
  		     derr[0] = derr[0]/(double)*itemp;
  		     derr[1] = derr[1]/(double)*itemp;
+
+                     outdata << derr[0] << "\t" << derr[1] << "\t";
 		  }
 		  else
+		  {
                      *xerr = *xerr/(double)*itemp;
+                     outdata << *xerr << "\t" << *xerr << "\t";
+		  }
 	       }
 	       else
 	       {
@@ -1575,13 +1596,21 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
 		  else
 */                     *y = *y/(double)*itemp;
 
+                  // Write out to data file for additional analysis (histogram bin widths)
+                  outdata << *y << "\t";
+
 		  if(directive[seldir[k]] == "shfoot")
 		  {
  		     derr[0] = derr[0]/(double)*itemp;
  		     derr[1] = derr[1]/(double)*itemp;
+
+                     outdata << derr[0] << "\t" << derr[1] << endl;
 		  }
 		  else
+		  {
                      *yerr = *yerr/(double)*itemp;
+                     outdata << *yerr << "\t" << *yerr << endl;
+		  }
 	       }
             }
          }
@@ -1595,9 +1624,17 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
 	    *itemp = 0;
 
             if(k == 0)
+	    {
 	       GetData(sepdir, seldir, "Xaxis", x, xerr, itemp, 0);
+
+               outdata << *x << "\t" << *xerr << "\t" << *xerr << "\t";
+	    }
             else
+	    {
 	       GetData(sepdir, seldir, "Yaxis", y, yerr, itemp, 0);
+
+               outdata << *y << "\t" << *yerr << "\t" << *yerr << endl;
+	    }
 	 }
          // Getting FD reconstructed data (acteyes)
          if( directiveaffil[seldir[k]] == "showfrecdata" )
@@ -1609,117 +1646,94 @@ int AdstAnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
 	    *itemp = 0;
 
             if(k == 0)
+	    {
 	       GetData(sepdir, seldir, "Xaxis", x, xerr, itemp, 0);
+
+               outdata << *x << "\t" << *xerr << "\t" << *xerr << "\t";
+	    }
             else
+	    {
 	       GetData(sepdir, seldir, "Yaxis", y, yerr, itemp, 0);
+
+               outdata << *y << "\t" << *yerr << "\t" << *yerr << endl;
+	    }
 	 }
-/*         // Getting tank risetime calculation (risetime)
-         if( directiveaffil[seldir[k]] == "tankvem" )	// TODO: Early and late risetimes (Slightly working)
+         // Getting separate tank calculation (risetime, risetimeearly, risetimelate)
+         if( directiveaffil[seldir[0]] == "tankvem" )
          {
+            *y = 10.e+31;
+            *itemp = 0;
+
+            if( sdtimesec.size() != 0 )
+               sdtimesec.erase(sdtimesec.begin(),sdtimesec.end());
+            if( sdtimensec.size() != 0 )
+               sdtimensec.erase(sdtimensec.begin(),sdtimensec.end());
+
+            for(int i = 0; i < acttanks.size(); i++)
+            {
+               if(acttanks[i].GetId() < 90000)
+               {
+                  sdtimesec.push_back(acttanks[i].GetTimeSecond());
+                  sdtimensec.push_back(acttanks[i].GetTimeNSecond());
+
+//                  printf("Second: %lf, NSecond: %lf, Distance: %lf\n", acttanks[i].GetTimeSecond(), acttanks[i].GetTimeNSecond(), acttanks[i].GetSPDistance());
+
+                  if( acttanks[i].GetSPDistance() < *y )
+                  {
+                     *y = acttanks[i].GetSPDistance();
+                     sdhotnsec = sdtimensec[i];
+                  }
+               }
+            }
+
+            printf("Hottest tank time: %lf\n", sdhotnsec);
+
 	    if(k == 0) *x = 0;
 	    else *y = 0;
 	    if(k == 0) *xerr = 0;
             else *yerr = 0;
-            *itemp = 0;
-	    *cordist = 1.e+40;
 
-            if( (directive[seldir[k]] == "risetimeearly") || (directive[seldir[k]] == "risetimelate") )
+            for(int i = 0; i < acttanks.size(); i++)
             {
-               for(int i = 0; i < nracttanks; i++)
+               if(acttanks[i].GetId() < 90000)
                {
-                  showtankdata->SetBranchAddress("distance", &etemp);
-                  showtankdata->GetEntry(i);
+                  cout << "Active tank: " << acttanks[i].GetId() << endl;
 
-                  if(etemp.val < *cordist)
-                  {
-                     *cordist = etemp.val;
-                     *nrpoints = i;
-                  }
-
-                  cout << "Distance from core = " << etemp.val << endl;
+                  if( (distlimit != 0 ) && (acttanks[i].GetSPDistance() <= distlimit) )
+		  {
+                     if(k == 0)
+                        GetData(sepdir, seldir, "Xaxis", x, xerr, itemp, i);
+		     else
+                        GetData(sepdir, seldir, "Yaxis", y, yerr, itemp, i);
+	          }
+                  else if( distlimit == 0 )
+		  {
+                     if(k == 0)
+                        GetData(sepdir, seldir, "Xaxis", x, xerr, itemp, i);
+		     else
+                        GetData(sepdir, seldir, "Yaxis", y, yerr, itemp, i);
+	          }
                }
-
-               showtankdata->SetBranchAddress("starttime", &stime);
-               showtankdata->GetEntry(*nrpoints);
-
-//             cout << "Core tank " << *nrpoints << " at distance " << *cordist << " has a timestamp of " << stime.nsec << endl;
-               *cordist = stime.nsec;
             }
 
-            for(int i = 0; i < nracttanks; i++)
+            if(acttanks.size() > 0)
             {
-               if( xvalue.size() != 0 )
-                  xvalue.erase(xvalue.begin(),xvalue.end());
-               if( yvalue.size() != 0 )
-                  yvalue.erase(yvalue.begin(),yvalue.end());
-
-               showtankdata->SetBranchAddress("starttime", &stime);
-               showtankdata->GetEntry(i);
-
-               GetTankTree(acttanks[i]);
-               cout << "Active tank: " << acttanks[i] << endl;
-
-               if(k == 0)
-	       {
-                  if( directive[seldir[0]] == "risetimeearly" )
-	          {
-	             if(stime.nsec < *cordist)
- 	                GetRisetime(i, stime.nsec, seldir, infilenr, itemp, x);
-	             else if(stime.nsec == *cordist)
-	                cout << "Tank " << i << " not used for early risetime calculations (tank closest to core)." << endl;
-	             else
-	                cout << setprecision(9) << "Tank " << i << " not used for early risetime calculations (" << stime.nsec << " >= " << *cordist << ")." << endl;
-	          }
-                  else if( directive[seldir[0]] == "risetimelate" )
-	          {
-	             if(stime.nsec > *cordist)
-	                GetRisetime(i, stime.nsec, seldir, infilenr, itemp, x);
-	             else if(stime.nsec == *cordist)
-	                cout << "Tank " << i << " not used for early risetime calculations (tank closest to core)." << endl;
-	             else
-	                cout << setprecision(9) << "Tank " << i << " not used for late risetime calculations (" << stime.nsec << " <= " << *cordist << ")." << endl;
-	          }
-	          else
-	             GetRisetime(i, stime.nsec, seldir, infilenr, itemp, x);
-	       }
-	       else
-	       {
-                  if( directive[seldir[0]] == "risetimeearly" )
-	          {
-	             if(stime.nsec < *cordist)
- 	                GetRisetime(i, stime.nsec, seldir, infilenr, itemp, y);
-	             else if(stime.nsec == *cordist)
-	                cout << "Tank " << i << " not used for early risetime calculations (tank closest to core)." << endl;
-	             else
-	                cout << setprecision(9) << "Tank " << i << " not used for early risetime calculations (" << stime.nsec << " >= " << *cordist << ")." << endl;
-	          }
-                  else if( directive[seldir[0]] == "risetimelate" )
-	          {
-	             if(stime.nsec > *cordist)
-	                GetRisetime(i, stime.nsec, seldir, infilenr, itemp, y);
-	             else if(stime.nsec == *cordist)
-	                cout << "Tank " << i << " not used for early risetime calculations (tank closest to core)." << endl;
-	             else
-	                cout << setprecision(9) << "Tank " << i << " not used for late risetime calculations (" << stime.nsec << " <= " << *cordist << ")." << endl;
-	          }
-	          else
-	             GetRisetime(i, stime.nsec, seldir, infilenr, itemp, y);
-	       }
-            }
-
-            if( (nracttanks > 0) && (*itemp > 0) )
-            {
-               if(k == 0)
-                  *x = *x/(double)*itemp;
-	       else
-                  *y = *y/(double)*itemp;
-
 	       if(k == 0)
-	          *xerr = 1.e-5;
+	       {
+                  *x = *x/(double)*itemp;
+                  *xerr = *xerr/(double)*itemp;
+
+                  outdata << *x << "\t" << *xerr << "\t" << *xerr << "\t";
+	       }
 	       else
-	          *yerr = 1.e-5;
+	       {
+                  *y = *y/(double)*itemp;
+                  *yerr = *yerr/(double)*itemp;
+
+                  outdata << *y << "\t" << *yerr << "\t" << *yerr << endl;
+	       }
             }
-         }*/
+         }
 
          // Set ranges
          if(directivetype[seldir[0]] == 'S')
@@ -2137,6 +2151,45 @@ int AdstAnalyseTool::GetData(std::string *sepdir, int *seldir, std::string type,
       }
 
       *count += 1;
+   }
+   else if( (directive[*useddir] == "risetime") || (directive[*useddir] == "risetimeearly") || (directive[*useddir] == "risetimelate") )	// Risetime calculation
+   {
+      if( (directive[*useddir] == "risetimeearly") && (sdhotnsec > acttanks[intanknr].GetTimeNSecond()) )
+      {
+         *x = acttanks[intanknr].GetRiseTime();
+         *xerr = acttanks[intanknr].GetRiseTimeRMS();
+
+         cout << "Risetime early: " << *x << " (" << *xerr << ")" << endl;
+    
+         *out += *x;
+         *outerr += *xerr;
+    
+         *count += 1;
+      }
+      else if( (directive[*useddir] == "risetimelate") && (sdhotnsec < acttanks[intanknr].GetTimeNSecond()) )
+      {
+         *x = acttanks[intanknr].GetRiseTime();
+         *xerr = acttanks[intanknr].GetRiseTimeRMS();
+
+         cout << "Risetime late: " << *x << " (" << *xerr << ")" << endl;
+    
+         *out += *x;
+         *outerr += *xerr;
+    
+         *count += 1;
+      }
+      else if( directive[*useddir] == "risetime" )
+      {
+         *x = acttanks[intanknr].GetRiseTime();
+         *xerr = acttanks[intanknr].GetRiseTimeRMS();
+
+         cout << "Risetime: " << *x << " (" << *xerr << ")" << endl;
+    
+         *out += *x;
+         *outerr += *xerr;
+    
+         *count += 1;
+      }
    }
 
    delete x;

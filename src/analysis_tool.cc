@@ -1,6 +1,7 @@
 #include "analysis_tool.h"
 #include "massanalyse.h"
 #include "adstanalyse.h"
+#include "adst_mva.h"
 #include "workstation.h"
 #include <iostream>
 #include <iomanip>
@@ -67,13 +68,14 @@ int main(int argc, char **argv)
 {
    MassAnalyseTool *mantool = new MassAnalyseTool();
    AdstAnalyseTool *aantool = new AdstAnalyseTool();
+   AdstMva *mvatool = new AdstMva();
 
    // if the argument is -f, only one file is supplied (argtype = 0): But this file can have one or more events
    // if the argument is -t, the files are saved into a tar-ball (argtype = 1)
    argtype = 0;
 
    int itemp;
-   string stemp;
+   string stemp, stemp2;
 
 //   printf("1\n");
 
@@ -81,6 +83,7 @@ int main(int argc, char **argv)
    {
       for(int i = 1; i < argc; i++)
       {
+         // Analysis of a single file
          if(strcmp("-f",argv[i]) == 0)
 	 {
 	    argtype = 0;
@@ -100,6 +103,7 @@ int main(int argc, char **argv)
 //	    cout << "Analysis file = " << mantool->GetAnalysisFilename() << endl;
 	    i++;
 	 }
+	 // Analysis of a collection of files in a tar-ball
 	 else if(strcmp("-t",argv[i]) == 0)
 	 {
 	    argtype = 1;
@@ -114,6 +118,17 @@ int main(int argc, char **argv)
 	    stemp = "tar -zxf " + string(argv[i+1]) + " -C " + string(BASEDIR) + "/input";
 	    itemp = system(stemp.c_str());
 	    i++;
+	 }
+	 // Multivariate analysis with TMVA
+	 else if(strcmp("-m",argv[i]) == 0)
+	 {
+	    argtype = 2;
+	    cout << "Rewriting files and preparing for the multivariate analysis." << endl;
+
+	    cout << "Nr. of input files: " << argc-2 << endl;
+
+	    for(int i = 0; i < argc-2; i++)
+	       mvatool->inname.push_back(string(argv[i+2]));
 	 }
       }
    }
@@ -133,6 +148,7 @@ int main(int argc, char **argv)
       if(fileformat == 1)
       {
          delete aantool;
+	 delete mvatool;
 
          // Open the analysis file and retrieve all default trees (those not tankvem and eyelong)
          mantool->infile = new TFile((mantool->GetAnalysisFilename()).c_str(),"READ");
@@ -151,6 +167,7 @@ int main(int argc, char **argv)
       else if(fileformat == 2)
       {
          delete mantool;
+	 delete mvatool;
 
          // Open the analysis file
 	 aantool->fFile = new RecEventFile((aantool->GetAnalysisFilename()).c_str(), RecEventFile::eRead);
@@ -252,6 +269,7 @@ int main(int argc, char **argv)
       if(fileformat == 1)
       {
          delete aantool;
+	 delete mvatool;
 
          // Start the main loop execution over all files that were in the tar-ball
          mantool->filesel = 1;
@@ -286,6 +304,7 @@ int main(int argc, char **argv)
       else if(fileformat == 2)
       {
          delete mantool;
+	 delete mvatool;
 
          // Start the main loop execution over all files that were in the tar-ball
          aantool->filesel = 1;
@@ -317,6 +336,67 @@ int main(int argc, char **argv)
             aantool->fFile->Close();
          }
          delete aantool;
+      }
+   }
+   else if(argtype == 2)
+   {
+      delete mantool;
+      delete aantool;
+
+      if(mvatool->inname.size() == 0)
+      {
+         delete mvatool;
+         return -1;
+      }
+      else
+      {
+         // Prepare output file
+//         cout << "Please select the output name of the MVA analysis file (extension .root): ";
+//         cin >> stemp;
+stemp = "simple.root";
+         mvatool->outname = string(BASEDIR) + "/" + stemp;
+         mvatool->outfile = TFile::Open((mvatool->outname).c_str(),"RECREATE");
+
+         // Prepare observable values for signal and background
+	 Observables obssig, obsback;
+         mvatool->back_tree = new TTree("TreeB", "Background tree from all signal files.");
+         
+	 // Start rewriting (for all input files)
+         for(int i = 0; i < mvatool->inname.size(); i++)
+	    mvatool->RewriteObservables(i, obssig, obsback);
+
+	 mvatool->back_tree->Write();
+
+         // Close all open files
+         mvatool->outfile->Close();
+	 mvatool->fFile->Close();
+
+	 // Start performing the MVA analysis - TODO: make this working correctly
+	 TFile *ofile = TFile::Open("simple_output.root","RECREATE");
+	 TMVA::Factory *factory = new TMVA::Factory("TMVAClassification",ofile,"!V:!Silent:Color:DrawProgressBar:Transformations=I;D;P;G,D:AnalysisType=Classification");
+
+         factory->AddVariable("xmax", 'D');
+         factory->AddVariable("lambda", 'D');
+         factory->AddVariable("shfoot", 'D');
+
+         TFile *ifile = TFile::Open(stemp.c_str());
+	 TTree *signal = (TTree*)ifile->Get("TreeS1");
+	 TTree *background = (TTree*)ifile->Get("TreeB");
+
+	 factory->AddSignalTree(signal, 1.0);
+	 factory->AddBackgroundTree(background, 1.0);
+
+	 factory->PrepareTrainingAndTestTree("", "", "nTrain_Signal=0:nTrain_Background=0:SplitMode=Random:NormMode=NumEvents:!V");
+	 factory->BookMethod( TMVA::Types::kMLP, "MLPBNN", "H:!V:NeuronType=tanh:VarTransform=N:NCycles=60:HiddenLayers=N+5:TestRate=5:TrainingMethod=BFGS:UseRegulator" );
+	 factory->TrainAllMethods();
+	 factory->TestAllMethods();
+	 factory->EvaluateAllMethods();
+
+         ifile->Close();
+	 delete factory;
+         ofile->Close();
+
+         delete mvatool;
       }
    }
 
