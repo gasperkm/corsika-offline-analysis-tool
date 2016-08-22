@@ -353,43 +353,137 @@ int main(int argc, char **argv)
          // Prepare output file
 //         cout << "Please select the output name of the MVA analysis file (extension .root): ";
 //         cin >> stemp;
-stemp = "simple.root";
+stemp = "tmva.root";
+
+         // Determine if a writeout to tmva.root is needed, or if only a TMVA analysis should be performed
+	 int writeAnalysis = -1;
+         cout << "Write out observables to tmva.root (0) or just create a MVA analysis on the existing tmva.root (1)? ";
+	 cin >> writeAnalysis;
+	 while( (writeAnalysis != 0) && (writeAnalysis != 1) )
+	 {
+            cout << "Error: Please select a valid option." << endl << "Write out observables to tmva.root (0) or just create a MVA analysis on the existing tmva.root (1)? ";
+	    cin >> writeAnalysis;
+	 }
+
          mvatool->outname = string(BASEDIR) + "/" + stemp;
-         mvatool->outfile = TFile::Open((mvatool->outname).c_str(),"RECREATE");
+	 if(writeAnalysis == 0)
+	 {
+            mvatool->outfile = TFile::Open((mvatool->outname).c_str(),"RECREATE");
 
-         // Prepare observable values for signal and background
-	 Observables obssig, obsback;
-         mvatool->back_tree = new TTree("TreeB", "Background tree from all signal files.");
+            // Prepare observable values for signal and background
+	    Observables obssig, obsback;
+            mvatool->back_tree = new TTree("TreeB", "Background tree from all signal files.");
          
-	 // Start rewriting (for all input files)
-         for(int i = 0; i < mvatool->inname.size(); i++)
-	    mvatool->RewriteObservables(i, obssig, obsback);
+	    // Start rewriting (for all input files)
+            for(int i = 0; i < mvatool->inname.size(); i++)
+	       mvatool->RewriteObservables(i, obssig, obsback);
 
-	 mvatool->back_tree->Write();
+	    mvatool->back_tree->Write();
 
-         // Close all open files
-         mvatool->outfile->Close();
-	 mvatool->fFile->Close();
+            // Close all open files
+            mvatool->outfile->Close();
+	    mvatool->fFile->Close();
+	 }
 
 	 // Start performing the MVA analysis - TODO: make this working correctly
-	 TFile *ofile = TFile::Open("simple_output.root","RECREATE");
+	 TFile *ofile = TFile::Open("tmva_output.root","RECREATE");
+	 // Factory usage:
+	 // - user-defined job name, reappearing in names of weight files for training results ("TMVAClassification")
+	 // - pointer to an output file (ofile)
+	 // - options
+	 // Factory has the following options:
+	 // 	V = verbose
+	 // 	Silent = batch mode
+	 // 	Color = colored screen output
+	 // 	DrawProgressBar = progress bar display during training and testing
+	 // 	Transformations = the transformations to make (identity, decorrelation, PCA, uniform, gaussian, gaussian decorrelation)
+	 // 	AnalysisType = setting the analysis type (Classification, Regression, Multiclass, Auto)
+	 // Default values = !V:!Silent:Color:DrawProgressBar:Transformations=I;D;P;G,D:AnalysisType=Auto
 	 TMVA::Factory *factory = new TMVA::Factory("TMVAClassification",ofile,"!V:!Silent:Color:DrawProgressBar:Transformations=I;D;P;G,D:AnalysisType=Classification");
 
-         factory->AddVariable("xmax", 'D');
-         factory->AddVariable("lambda", 'D');
-         factory->AddVariable("shfoot", 'D');
+	 // Add variables to be used (similar for spectators and targets):
+	 // - name of the variable as defined in the input file
+	 // - type of the variable (can be int = 'I' or float/double = 'F')
+	 // Additionally, can also have a title and the units for the variable: factory->AddVariable("name","title","unit",'F');
+         factory->AddVariable("xmax", 'F');
+         factory->AddVariable("x0", 'F');
+         factory->AddVariable("lambda", 'F');
+//         factory->AddVariable("fdenergy", 'F');
+         factory->AddVariable("shfoot", 'F');
+         factory->AddVariable("ldf1000", 'F');
+//         factory->AddVariable("ldfbeta", 'F');
+         factory->AddVariable("nrmu", 'F');
+         factory->AddVariable("curvature", 'F');
+
+	 // Open up the input file and ask which signal tree we want to check
+	 int whichAnalysis = -1;
+         string signalName = "TreeS1";
 
          TFile *ifile = TFile::Open(stemp.c_str());
-	 TTree *signal = (TTree*)ifile->Get("TreeS1");
+         if(ifile->GetListOfKeys()->Contains("TreeB"))
+	 {
+            cout << endl << "There are " << ifile->GetNkeys()-1 << " signal trees available:" << endl;
+	    for(int i = 1; i < ifile->GetNkeys(); i++)
+	    {
+               signalName = "TreeS" + IntToStr(i);
+	       cout << "- " << i << ": " << ifile->GetKey(signalName.c_str())->GetTitle() << endl;
+	    }
+	    cout << endl << "Select one to analyze (1-" << ifile->GetNkeys()-1 << "): ";
+	    cin >> whichAnalysis;
+
+	    while( (whichAnalysis >= ifile->GetNkeys()) || (whichAnalysis < 1) )
+	    {
+               cout << "Error: Wrong selection." << endl << "There are " << ifile->GetNkeys()-1 << " signal trees available. Select one to analyze (1-" << ifile->GetNkeys()-1 << "): ";
+	       cin >> whichAnalysis;
+	    }
+
+	    signalName = "TreeS" + IntToStr(whichAnalysis);
+	 }
+
+	 // Getting signal and background trees for training and testing (can supply multiple trees)
+	 TTree *signal = (TTree*)ifile->Get(signalName.c_str());
 	 TTree *background = (TTree*)ifile->Get("TreeB");
 
+	 // Add all the trees to the factory with overall weights for the complete sample
 	 factory->AddSignalTree(signal, 1.0);
 	 factory->AddBackgroundTree(background, 1.0);
 
+	 // Preparing and training from the trees:
+	 // - preselection cuts make cuts on input variables, before even starting the MVA
+	 // - options
+	 // These are the possible options:
+	 // 	nTrain_Signal = number of training events of class Signal (0 takes all)
+	 // 	nTrain_Background = number of training events of class Background (0 takes all)
+	 // 	nTest_Signal = number of test events of class Signal (0 takes all)
+	 // 	nTest_Background = number of test events of class Background (0 takes all)
+	 // 	SplitMode = method of choosing training and testing events (Random, Alternate, Block)
+	 //	NormMode = renormalisation of event-by-event weights for training (NumEvents: average weight of 1 per event for signal and background, EqualNumEvents: average weight of 1 per event for signal and sum of weights for background equal to sum of weights for signal, None)
+	 //	V = verbose
+	 //	MixMode = method of mixing events of different classes into one dataset (SameAsSplitMode, Random, Alternate, Block)
+	 //	SplitSeed = seed for random event shuffling (default = 100)
+	 //	VerboseLevel = level of verbose (Debug, Verbose, Info)
 	 factory->PrepareTrainingAndTestTree("", "", "nTrain_Signal=0:nTrain_Background=0:SplitMode=Random:NormMode=NumEvents:!V");
+	 // Booking MVA methods:
+	 // - type of MVA method to be used (all defined in src/Types.h)
+	 // - the unique name for the MVA method suplied by the user
+	 // - options
+	 // The possible options for each method are defined here: http://tmva.sourceforge.net/optionRef.html
+	 // For example:
+	 // 	H = print method-specific help message
+	 // 	V = verbose
+	 // 	NeuronType = neuron activation function type (default = sigmoid)
+	 // 	VarTransform = list of variable transformations to do before training (D_Background,P_Signal,G,N_AllClasses -> N = Normalization for all classes)
+	 // 	NCycles = number of training cycles
+	 // 	HiddenLayers = hidden layer architecture (default = N,N-1)
+	 // 	TestRate = test for overtraining at each #th epoch (default = 10)
+	 // 	TrainingMethod = train with back propagation (BP), BFGS algorithm (BFGS) or generic algorithm (GA)
+	 // 	UseRegulator = use regulator to avoid overtraining
 	 factory->BookMethod( TMVA::Types::kMLP, "MLPBNN", "H:!V:NeuronType=tanh:VarTransform=N:NCycles=60:HiddenLayers=N+5:TestRate=5:TrainingMethod=BFGS:UseRegulator" );
+	 // Train the selected methods and save them to the weights folder
 	 factory->TrainAllMethods();
+	 // Test the selected methods by applying the trained data to the test data set -> outputs saved to TestTree output file and then to the output ROOT file
 	 factory->TestAllMethods();
+	 // Evaluation of methods printed to stdout
 	 factory->EvaluateAllMethods();
 
          ifile->Close();

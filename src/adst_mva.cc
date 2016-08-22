@@ -36,6 +36,8 @@ AdstMva::AdstMva()
 */
    fRecEvent = new RecEvent();
    fDetGeo = new DetectorGeometry();
+   genshw = new GenShower();
+   sdrecshw = new SdRecShower();
 
    outname = "output.root";
 
@@ -75,17 +77,25 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back)
    sig_tree = new TTree(stemp.c_str(), stemp2.c_str());
    sig_tree->Branch("xmax", &(sig.xmax), "xmax/D");
    sig_tree->Branch("x0", &(sig.x0), "x0/D");
-   sig_tree->Branch("x1", &(sig.x1), "x1/D");
+//   sig_tree->Branch("x1", &(sig.x1), "x1/D");
    sig_tree->Branch("lambda", &(sig.lambda), "lambda/D");
    sig_tree->Branch("fdenergy", &(sig.fdenergy), "fdenergy/D");
    sig_tree->Branch("shfoot", &(sig.shfoot), "shfoot/D");
+   sig_tree->Branch("ldf1000", &(sig.ldf1000), "ldf1000/D");
+   sig_tree->Branch("ldfbeta", &(sig.ldfbeta), "ldfbeta/D");
+   sig_tree->Branch("curvature", &(sig.curvature), "curvature/D");
+   sig_tree->Branch("nrmu", &(sig.nrmu), "nrmu/D");
 
    back_tree->Branch("xmax", &(back.xmax), "xmax/D");
    back_tree->Branch("x0", &(back.x0), "x0/D");
-   back_tree->Branch("x1", &(back.x1), "x1/D");
+//   back_tree->Branch("x1", &(back.x1), "x1/D");
    back_tree->Branch("lambda", &(back.lambda), "lambda/D");
    back_tree->Branch("fdenergy", &(back.fdenergy), "fdenergy/D");
    back_tree->Branch("shfoot", &(back.shfoot), "shfoot/D");
+   back_tree->Branch("ldf1000", &(back.ldf1000), "ldf1000/D");
+   back_tree->Branch("ldfbeta", &(back.ldfbeta), "ldfbeta/D");
+   back_tree->Branch("curvature", &(back.curvature), "curvature/D");
+   back_tree->Branch("nrmu", &(back.nrmu), "nrmu/D");
 
    // Open and prepare the ADST files that we wish to read
    fFile = new RecEventFile(inname[innr].c_str(), RecEventFile::eRead);
@@ -103,6 +113,7 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back)
       if(acteyes.size() != 0)
          acteyes.erase(acteyes.begin(),acteyes.end());
 
+      // Go over the FD eye events
       cout << "Number of eyes: " << fRecEvent->GetNEyes() << endl;
       if(fRecEvent->GetNEyes() == 0)
          cout << "Error! No reconstructed eyes for this event." << endl;
@@ -123,13 +134,13 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back)
 	 {
             sig.xmax = acteyes[itemp].GetXmax();
             sig.x0 = acteyes[itemp].GetX0();
-            sig.x1 = acteyes[itemp].GetX1();
+//            sig.x1 = acteyes[itemp].GetX1();
             sig.lambda = acteyes[itemp].GetLambda();
             sig.fdenergy = acteyes[itemp].GetEnergy();
 
 	    back.xmax = acteyes[itemp].GetXmax();
             back.x0 = acteyes[itemp].GetX0();
-            back.x1 = acteyes[itemp].GetX1();
+//            back.x1 = acteyes[itemp].GetX1();
             back.lambda = acteyes[itemp].GetLambda();
             back.fdenergy = acteyes[itemp].GetEnergy();
 
@@ -142,15 +153,34 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back)
             cout << "Values to save: " << endl
 	         << "\t- Xmax = " << sig.xmax << endl
 	         << "\t- X0 = " << sig.x0 << endl
-	         << "\t- X1 = " << sig.x1 << endl
+//	         << "\t- X1 = " << sig.x1 << endl
 	         << "\t- Lambda = " << sig.lambda << endl
 		 << "\t- FD Energy = " << sig.fdenergy << endl
 		 << "\t- Shower foot = " << sig.shfoot << endl;
 
-            sig_tree->Fill();
-	    back_tree->Fill();
+//            sig_tree->Fill();
+//	    back_tree->Fill();
 	 }
       }
+      // Go over the SD tank events
+      *sdrecshw = fRecEvent->GetSDEvent().GetSdRecShower();
+      sig.ldf1000 = sdrecshw->GetS1000();
+      sig.ldfbeta = sdrecshw->GetBeta();
+      sig.curvature = sdrecshw->GetCurvature();
+      back.ldf1000 = sdrecshw->GetS1000();
+      back.ldfbeta = sdrecshw->GetBeta();
+      back.curvature = sdrecshw->GetCurvature();
+      cout << "\t- LDF at 1000m = " << sig.ldf1000 << endl
+           << "\t- LDF Beta = " << sig.ldfbeta << endl
+           << "\t- Curvature R = " << sig.curvature << endl;
+      // Go over the simulated events (Muon number at ground level)
+      *genshw = fRecEvent->GetGenShower();
+      sig.nrmu = genshw->GetMuonNumber();
+      back.nrmu = genshw->GetMuonNumber();
+      cout << "\t- Nr. of muons = " << sig.nrmu << endl;
+
+      sig_tree->Fill();
+      back_tree->Fill();
    }
 
    sig_tree->Write();

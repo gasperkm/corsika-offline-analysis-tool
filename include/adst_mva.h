@@ -21,6 +21,7 @@
 #include "TFile.h"
 #include "TMath.h"
 #include "TColor.h"
+#include "TKey.h"
 
 #include "TMVA/Factory.h"
 #include "TMVA/Tools.h"
@@ -42,6 +43,10 @@ public:
    double lambda;	// GH shape parameter lambda
    double shfoot;	// Shower foot
    double fdenergy;	// Total energy from FD
+   double nrmu;		// number of muons at ground level
+   double ldf1000;	// S1000 or LDF signal at 1000m from the core
+   double ldfbeta;	// beta variable of the LDF
+   double curvature;	// curvature R
 };
 
 class AdstMva {
@@ -57,6 +62,9 @@ public:
    RecEvent *fRecEvent;
    RecEventFile *fFile;
    DetectorGeometry *fDetGeo;
+
+   GenShower *genshw;
+   SdRecShower *sdrecshw;
 
    // All input filenames that will be used for the MVA
    std::vector<std::string> inname;
