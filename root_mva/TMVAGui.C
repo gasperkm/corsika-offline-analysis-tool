@@ -9,6 +9,8 @@
 #include "TObjString.h"
 #include "TClass.h"
 
+#include "TApplication.h"
+
 #include "tmvaglob.C"
 
 // some global lists
@@ -52,7 +54,6 @@ void TMVAGui( const char* fName = "../tmva_output.root" )
    // Use this script in order to run the various individual macros
    // that plot the output of TMVA (e.g. running TMVAClassification.C),
    // stored in the file "../tmva_output.root"
-
    TString curMacroPath(gROOT->GetMacroPath());
    // uncomment next line for macros submitted to next root version
    gROOT->SetMacroPath(curMacroPath+":./:$ROOTSYS/tmva/test/:");
@@ -108,7 +109,7 @@ void TMVAGui( const char* fName = "../tmva_output.root" )
       if (tmp.Contains( "Id" )) title = "Input variables (training sample)";
       ActionButton( cbar, 
                     Form( "(%i%c) %s", ic, ch++, title.Data() ),
-                    Form( ".x variables.C(\"%s\",\"%s\",\"%s\")", fName, str->GetString().Data(), title.Data() ),
+                    Form( ".x ./root_mva/variables.C(\"%s\",\"%s\",\"%s\")", fName, str->GetString().Data(), title.Data() ),
                     Form( "Plots all '%s'-transformed input variables (macro variables.C(...))", str->GetString().Data() ),
                     buttonType, str->GetString() );
    }      
@@ -123,7 +124,7 @@ void TMVAGui( const char* fName = "../tmva_output.root" )
       if (tmp.Contains( "Id" )) title = "Input variable correlations (scatter profiles)";
       ActionButton( cbar, 
                     Form( "(%i%c) %s", ic, ch++, title.Data() ),
-                    Form( ".x CorrGui.C(\"%s\",\"%s\",\"%s\")", fName, str->GetString().Data(), title.Data() ),
+                    Form( ".x ./root_mva/CorrGui.C(\"%s\",\"%s\",\"%s\")", fName, str->GetString().Data(), title.Data() ),
                     Form( "Plots all correlation profiles between '%s'-transformed input variables (macro CorrGui.C(...))", 
                           str->GetString().Data() ),
                     buttonType, str->GetString() );
@@ -134,63 +135,63 @@ void TMVAGui( const char* fName = "../tmva_output.root" )
    title =Form( "(%i) Input Variable Linear Correlation Coefficients", ++ic );
    ActionButton( cbar,  
                  title,
-                 Form( ".x correlations.C(\"%s\")", fName ),
+                 Form( ".x ./root_mva/correlations.C(\"%s\")", fName ),
                  "Plots signal and background correlation summaries for all input variables (macro correlations.C)", 
                  buttonType );
 
    title =Form( "(%ia) Classifier Output Distributions (test sample)", ++ic );
    ActionButton( cbar,  
                  title,
-                 Form( ".x mvas.C(\"%s\",0)", fName ),
+                 Form( ".x ./root_mva/mvas.C(\"%s\",0)", fName ),
                  "Plots the output of each classifier for the test data (macro mvas.C(...,0))",
                  buttonType, defaultRequiredClassifier );
 
    title =Form( "(%ib) Classifier Output Distributions (test and training samples superimposed)", ic );
    ActionButton( cbar,  
                  title,
-                 Form( ".x mvas.C(\"%s\",CompareType)", fName ),
+                 Form( ".x ./root_mva/mvas.C(\"%s\",CompareType)", fName ),
                  "Plots the output of each classifier for the test (histograms) and training (dots) data (macro mvas.C(...,3))",
                  buttonType, defaultRequiredClassifier );
 
    title = Form( "(%ic) Classifier Probability Distributions (test sample)", ic );
    ActionButton( cbar,  
                  title,
-                 Form( ".x mvas.C(\"%s\",1)", fName ),
+                 Form( ".x ./root_mva/mvas.C(\"%s\",1)", fName ),
                  "Plots the probability of each classifier for the test data (macro mvas.C(...,1))",
                  buttonType, defaultRequiredClassifier );
 
    title =Form( "(%id) Classifier Rarity Distributions (test sample)", ic );
    ActionButton( cbar,  
                  title,
-                 Form( ".x mvas.C(\"%s\",2)", fName ),
+                 Form( ".x ./root_mva/mvas.C(\"%s\",2)", fName ),
                  "Plots the Rarity of each classifier for the test data (macro mvas.C(...,2)) - background distribution should be uniform",
                  buttonType, defaultRequiredClassifier );
 
    title =Form( "(%ia) Classifier Cut Efficiencies", ++ic );
    ActionButton( cbar,  
                  title,
-                 Form( ".x mvaeffs.C+(\"%s\")", fName ),
+                 Form( ".x ./root_mva/mvaeffs.C+(\"%s\")", fName ),
                  "Plots signal and background efficiencies versus cut on classifier output (macro mvaeffs.C)",
                  buttonType, defaultRequiredClassifier );
 
    title = Form( "(%ib) Classifier Background Rejection vs Signal Efficiency (ROC curve)", ic );
    ActionButton( cbar,  
                  title,
-                 Form( ".x efficiencies.C(\"%s\")", fName ),
+                 Form( ".x ./root_mva/efficiencies.C(\"%s\")", fName ),
                  "Plots background rejection vs signal efficiencies (macro efficiencies.C) [\"ROC\" stands for \"Receiver Operation Characteristics\"]",
                  buttonType, defaultRequiredClassifier );
 
    title = Form( "(%ib) Classifier 1/(Backgr. Efficiency) vs Signal Efficiency (ROC curve)", ic );
    ActionButton( cbar,  
                  title,
-                 Form( ".x efficiencies.C(\"%s\",%d)", fName, 3 ),
+                 Form( ".x ./root_mva/efficiencies.C(\"%s\",%d)", fName, 3 ),
                  "Plots 1/(background eff.)  vs signal efficiencies (macro efficiencies.C) [\"ROC\" stands for \"Receiver Operation Characteristics\"]",
                  buttonType, defaultRequiredClassifier );
 
    title = Form( "(%i) Parallel Coordinates (requires ROOT-version >= 5.17)", ++ic );
    ActionButton( cbar,  
                  title,
-                 Form( ".x paracoor.C(\"%s\")", fName ),
+                 Form( ".x ./root_mva/paracoor.C(\"%s\")", fName ),
                  "Plots parallel coordinates for classifiers and input variables (macro paracoor.C, requires ROOT >= 5.17)",
                  buttonType, defaultRequiredClassifier );
 
@@ -202,19 +203,19 @@ void TMVAGui( const char* fName = "../tmva_output.root" )
    title =Form( "(%i) PDFs of Classifiers (requires \"CreateMVAPdfs\" option set)", ++ic );
    ActionButton( cbar,  
                  title,
-                 Form( ".x probas.C(\"%s\")", fName ),
+                 Form( ".x ./root_mva/probas.C(\"%s\")", fName ),
                  "Plots the PDFs of the classifier output distributions for signal and background - if requested (macro probas.C)",
                  buttonType, defaultRequiredClassifier );
 
    title = Form( "(%i) Likelihood Reference Distributiuons", ++ic);
    ActionButton( cbar,  
                  title,
-                 Form( ".x likelihoodrefs.C(\"%s\")", fName ), 
+                 Form( ".x ./root_mva/likelihoodrefs.C(\"%s\")", fName ), 
                  "Plots to verify the likelihood reference distributions (macro likelihoodrefs.C)",
                  buttonType, "Likelihood" );
 
    title = Form( "(%ia) Network Architecture (MLP)", ++ic );
-   TString call = Form( ".x network.C+g(\"%s\")", fName );
+   TString call = Form( ".x ./root_mva/network.C+g(\"%s\")", fName );
    ActionButton( cbar,  
                  title,
                  call, 
@@ -224,40 +225,40 @@ void TMVAGui( const char* fName = "../tmva_output.root" )
    title = Form( "(%ib) Network Convergence Test (MLP)", ic );
    ActionButton( cbar,  
                  title,
-                 Form( ".x annconvergencetest.C(\"%s\")", fName ), 
+                 Form( ".x ./root_mva/annconvergencetest.C(\"%s\")", fName ), 
                  "Plots error estimator versus training epoch for training and test samples (macro annconvergencetest.C)",
                  buttonType, "MLP" );
 
    title = Form( "(%i) Decision Trees (BDT)", ++ic );
    ActionButton( cbar,  
                  title,
-                 Form( ".x BDT.C+(\"%s\")", fName ),
+                 Form( ".x ./root_mva/BDT.C+(\"%s\")", fName ),
                  "Plots the Decision Trees trained by BDT algorithms (macro BDT.C(itree,...))",
                  buttonType, "BDT" );
    
    title = Form( "(%i) Decision Tree Control Plots (BDT)", ++ic );
    ActionButton( cbar,  
                  title,
-                 Form( ".x BDTControlPlots.C+(\"%s\")", fName ),
+                 Form( ".x ./root_mva/BDTControlPlots.C+(\"%s\")", fName ),
                  "Plots to monitor boosting and pruning of decision trees (macro BDTControlPlots.C)",
                  buttonType, "BDT" );
    //    ActionButton( cbar,  
    //                  Form( "(%i) Rule Ensemble Importance Plots (RuleFit)", ++ic ),
-   //                  Form( ".x rulevis.C(\"%s\",0)", fName ),
+   //                  Form( ".x ./root_mva/rulevis.C(\"%s\",0)", fName ),
    //                  "Plots all input variables with rule ensemble weights, including linear terms (macro rulevis.C)",
    //                  buttonType, "RuleFit" );
 
    title = Form( "(%i) Plot Foams (PDEFoam)", ++ic );
    ActionButton( cbar,  
                  title,
-                 ".x PlotFoams.C(\"weights/TMVAClassification_PDEFoam.weights_foams.root\")",
+                 ".x ./root_mva/PlotFoams.C(\"weights/TMVAClassification_PDEFoam.weights_foams.root\")",
                  "Plot Foams (macro PlotFoams.C)",
                  buttonType, "PDEFoam" );
 
    title = Form( "(%i) General Boost Control Plots", ++ic );
    ActionButton( cbar,  
                  title,
-                 Form( ".x BoostControlPlots.C(\"%s\")", fName ),
+                 Form( ".x ./root_mva/BoostControlPlots.C(\"%s\")", fName ),
                  "Plots to monitor boosting of general classifiers (macro BoostControlPlots.C)",
                  buttonType, "Boost" );
 
@@ -282,4 +283,25 @@ void TMVAGui( const char* fName = "../tmva_output.root" )
    }
 
    gROOT->SaveContext();
+}
+
+int main(int argc, char **argv) 
+{
+   char *fName;
+   fName = new char[1024];
+   if(argc > 1)
+   {
+      fName = argv[1];
+   }
+   else
+   {
+      cout << "No input file was supplied." << endl;
+      return 1;
+   }
+
+   TApplication theApp("TMVAGui", &argc, argv);
+   TMVAGui(fName);
+   theApp.Run();
+
+   return 0;
 }

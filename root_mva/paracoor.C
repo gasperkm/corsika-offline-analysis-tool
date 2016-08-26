@@ -106,7 +106,7 @@ void paracoor( TString fin = "TMVA.root", Bool_t useTMVAStyle = kTRUE )
 
          c1->Update();
 
-         TString fname = Form( "plots/paracoor_c%i_%s", imva, itype == 0 ? "S" : "B" );
+         TString fname = Form( "root_mva/plots/paracoor_c%i_%s", imva, itype == 0 ? "S" : "B" );
          TMVAGlob::imgconv( c1, fname );
       }
    }

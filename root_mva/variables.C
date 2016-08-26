@@ -168,7 +168,7 @@ void variables( TString fin = "TMVA.root", TString dirName = "InputVariables_Id"
 
       // save canvas to file
       if (countPad%noPadPerCanv==0) {
-         TString fname = Form( "plots/%s_c%i", outfname.Data(), countCanvas );
+         TString fname = Form( "root_mva/plots/%s_c%i", outfname.Data(), countCanvas );
          TMVAGlob::plot_logo();
          TMVAGlob::imgconv( canv, fname );
          createNewFig = kFALSE;
@@ -179,7 +179,7 @@ void variables( TString fin = "TMVA.root", TString dirName = "InputVariables_Id"
    }
    
    if (createNewFig) {
-      TString fname = Form( "plots/%s_c%i", outfname.Data(), countCanvas );
+      TString fname = Form( "root_mva/plots/%s_c%i", outfname.Data(), countCanvas );
       TMVAGlob::plot_logo();
       TMVAGlob::imgconv( canv, fname );
       createNewFig = kFALSE;

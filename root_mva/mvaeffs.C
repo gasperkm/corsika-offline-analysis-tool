@@ -546,7 +546,7 @@ void StatDialogMVAEffs::DrawHistograms()
       const Bool_t Save_Images = kTRUE;
 
       if (Save_Images) {
-         TMVAGlob::imgconv( c, Form("plots/mvaeffs_%s", info->methodTitle.Data()) ); 
+         TMVAGlob::imgconv( c, Form("root_mva/plots/mvaeffs_%s", info->methodTitle.Data()) ); 
       }
       countCanvas++;
    }

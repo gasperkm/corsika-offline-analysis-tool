@@ -13,10 +13,15 @@ Observables::Observables()
 {
    xmax = -1;
    x0 = -1;
-   x1 = -1;
    lambda = -1;
-   fdenergy = -1;
    shfoot = -1;
+   fdenergy = -1;
+   nrmu = -1;
+   ldf1000 = -1;
+   shwsize = -1;
+   ldfbeta = -1;
+   curvature = -1;
+   risetime = -1;
 }
 
 Observables::~Observables()
@@ -39,7 +44,7 @@ AdstMva::AdstMva()
    genshw = new GenShower();
    sdrecshw = new SdRecShower();
 
-   outname = "output.root";
+   outname = "tmva_output.root";
 
    shfootlimit = 0.1;
 
@@ -61,7 +66,7 @@ AdstMva::~AdstMva()
 }
 // ------------------------------------------------------------------------------------------------------
 
-void AdstMva::RewriteObservables(int innr, Observables sig, Observables back)
+void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TTree *back_tree)
 {
    string stemp, stemp2;
    int itemp;
@@ -75,27 +80,44 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back)
    stemp2 = "Signal tree from file " + inname[innr] + ".";
    
    sig_tree = new TTree(stemp.c_str(), stemp2.c_str());
-   sig_tree->Branch("xmax", &(sig.xmax), "xmax/D");
-   sig_tree->Branch("x0", &(sig.x0), "x0/D");
-//   sig_tree->Branch("x1", &(sig.x1), "x1/D");
-   sig_tree->Branch("lambda", &(sig.lambda), "lambda/D");
-   sig_tree->Branch("fdenergy", &(sig.fdenergy), "fdenergy/D");
-   sig_tree->Branch("shfoot", &(sig.shfoot), "shfoot/D");
-   sig_tree->Branch("ldf1000", &(sig.ldf1000), "ldf1000/D");
-   sig_tree->Branch("ldfbeta", &(sig.ldfbeta), "ldfbeta/D");
-   sig_tree->Branch("curvature", &(sig.curvature), "curvature/D");
-   sig_tree->Branch("nrmu", &(sig.nrmu), "nrmu/D");
+   sig_tree->Branch("xmax", &(sig.xmax), "xmax/F");
+   sig_tree->Branch("x0", &(sig.x0), "x0/F");
+   sig_tree->Branch("lambda", &(sig.lambda), "lambda/F");
+   sig_tree->Branch("fdenergy", &(sig.fdenergy), "fdenergy/F");
+   sig_tree->Branch("shfoot", &(sig.shfoot), "shfoot/F");
+   sig_tree->Branch("ldf1000", &(sig.ldf1000), "ldf1000/F");
+   sig_tree->Branch("shwsize", &(sig.shwsize), "shwsize/F");
+   sig_tree->Branch("ldfbeta", &(sig.ldfbeta), "ldfbeta/F");
+   sig_tree->Branch("curvature", &(sig.curvature), "curvature/F");
+   sig_tree->Branch("nrmu", &(sig.nrmu), "nrmu/F");
+   sig_tree->Branch("risetime", &(sig.risetime), "risetime/F");
 
-   back_tree->Branch("xmax", &(back.xmax), "xmax/D");
-   back_tree->Branch("x0", &(back.x0), "x0/D");
-//   back_tree->Branch("x1", &(back.x1), "x1/D");
-   back_tree->Branch("lambda", &(back.lambda), "lambda/D");
-   back_tree->Branch("fdenergy", &(back.fdenergy), "fdenergy/D");
-   back_tree->Branch("shfoot", &(back.shfoot), "shfoot/D");
-   back_tree->Branch("ldf1000", &(back.ldf1000), "ldf1000/D");
-   back_tree->Branch("ldfbeta", &(back.ldfbeta), "ldfbeta/D");
-   back_tree->Branch("curvature", &(back.curvature), "curvature/D");
-   back_tree->Branch("nrmu", &(back.nrmu), "nrmu/D");
+   all_tree->Branch("xmax", &(back.xmax), "xmax/F");
+   all_tree->Branch("x0", &(back.x0), "x0/F");
+   all_tree->Branch("lambda", &(back.lambda), "lambda/F");
+   all_tree->Branch("fdenergy", &(back.fdenergy), "fdenergy/F");
+   all_tree->Branch("shfoot", &(back.shfoot), "shfoot/F");
+   all_tree->Branch("ldf1000", &(back.ldf1000), "ldf1000/F");
+   all_tree->Branch("shwsize", &(back.shwsize), "shwsize/F");
+   all_tree->Branch("ldfbeta", &(back.ldfbeta), "ldfbeta/F");
+   all_tree->Branch("curvature", &(back.curvature), "curvature/F");
+   all_tree->Branch("nrmu", &(back.nrmu), "nrmu/F");
+   all_tree->Branch("risetime", &(back.risetime), "risetime/F");
+
+   for(int i = 0; i < inname.size(); i++)
+   {
+      back_tree[i].Branch("xmax", &(back.xmax), "xmax/F");
+      back_tree[i].Branch("x0", &(back.x0), "x0/F");
+      back_tree[i].Branch("lambda", &(back.lambda), "lambda/F");
+      back_tree[i].Branch("fdenergy", &(back.fdenergy), "fdenergy/F");
+      back_tree[i].Branch("shfoot", &(back.shfoot), "shfoot/F");
+      back_tree[i].Branch("ldf1000", &(back.ldf1000), "ldf1000/F");
+      back_tree[i].Branch("shwsize", &(back.shwsize), "shwsize/F");
+      back_tree[i].Branch("ldfbeta", &(back.ldfbeta), "ldfbeta/F");
+      back_tree[i].Branch("curvature", &(back.curvature), "curvature/F");
+      back_tree[i].Branch("nrmu", &(back.nrmu), "nrmu/F");
+      back_tree[i].Branch("risetime", &(back.risetime), "risetime/F");
+   }
 
    // Open and prepare the ADST files that we wish to read
    fFile = new RecEventFile(inname[innr].c_str(), RecEventFile::eRead);
@@ -134,13 +156,11 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back)
 	 {
             sig.xmax = acteyes[itemp].GetXmax();
             sig.x0 = acteyes[itemp].GetX0();
-//            sig.x1 = acteyes[itemp].GetX1();
             sig.lambda = acteyes[itemp].GetLambda();
             sig.fdenergy = acteyes[itemp].GetEnergy();
 
 	    back.xmax = acteyes[itemp].GetXmax();
             back.x0 = acteyes[itemp].GetX0();
-//            back.x1 = acteyes[itemp].GetX1();
             back.lambda = acteyes[itemp].GetLambda();
             back.fdenergy = acteyes[itemp].GetEnergy();
 
@@ -153,26 +173,33 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back)
             cout << "Values to save: " << endl
 	         << "\t- Xmax = " << sig.xmax << endl
 	         << "\t- X0 = " << sig.x0 << endl
-//	         << "\t- X1 = " << sig.x1 << endl
 	         << "\t- Lambda = " << sig.lambda << endl
 		 << "\t- FD Energy = " << sig.fdenergy << endl
 		 << "\t- Shower foot = " << sig.shfoot << endl;
 
 //            sig_tree->Fill();
-//	    back_tree->Fill();
+//	    all_tree->Fill();
 	 }
       }
+
       // Go over the SD tank events
       *sdrecshw = fRecEvent->GetSDEvent().GetSdRecShower();
       sig.ldf1000 = sdrecshw->GetS1000();
+      sig.shwsize = sdrecshw->GetShowerSize();
       sig.ldfbeta = sdrecshw->GetBeta();
       sig.curvature = sdrecshw->GetCurvature();
+      sig.risetime = sdrecshw->GetRiseTimeResults().GetRiseTime1000();
       back.ldf1000 = sdrecshw->GetS1000();
+      back.shwsize = sdrecshw->GetShowerSize();
       back.ldfbeta = sdrecshw->GetBeta();
       back.curvature = sdrecshw->GetCurvature();
+      back.risetime = sdrecshw->GetRiseTimeResults().GetRiseTime1000();
       cout << "\t- LDF at 1000m = " << sig.ldf1000 << endl
+           << "\t- Shower size (replacement for S1000?) = " << sig.shwsize << endl
            << "\t- LDF Beta = " << sig.ldfbeta << endl
-           << "\t- Curvature R = " << sig.curvature << endl;
+           << "\t- Curvature R = " << sig.curvature << endl
+           << "\t- Risetime at 1000m = " << sig.risetime << endl;
+
       // Go over the simulated events (Muon number at ground level)
       *genshw = fRecEvent->GetGenShower();
       sig.nrmu = genshw->GetMuonNumber();
@@ -180,7 +207,13 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back)
       cout << "\t- Nr. of muons = " << sig.nrmu << endl;
 
       sig_tree->Fill();
-      back_tree->Fill();
+      all_tree->Fill();
+
+      for(int i = 0; i < inname.size(); i++)
+      {
+         if(i != innr)
+	    back_tree[i].Fill();
+      }
    }
 
    sig_tree->Write();

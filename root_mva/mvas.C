@@ -234,10 +234,10 @@ void mvas( TString fin = "TMVA.root", HistType htype = MVAType, Bool_t useTMVASt
 
          TMVAGlob::plot_logo(1.058);
          if (Save_Images) {
-            if      (htype == MVAType)     TMVAGlob::imgconv( c, Form("plots/mva_%s",     methodTitle.Data()) );
-            else if (htype == ProbaType)   TMVAGlob::imgconv( c, Form("plots/proba_%s",   methodTitle.Data()) ); 
-            else if (htype == CompareType) TMVAGlob::imgconv( c, Form("plots/overtrain_%s", methodTitle.Data()) ); 
-            else                           TMVAGlob::imgconv( c, Form("plots/rarity_%s",  methodTitle.Data()) ); 
+            if      (htype == MVAType)     TMVAGlob::imgconv( c, Form("root_mva/plots/mva_%s",     methodTitle.Data()) );
+            else if (htype == ProbaType)   TMVAGlob::imgconv( c, Form("root_mva/plots/proba_%s",   methodTitle.Data()) ); 
+            else if (htype == CompareType) TMVAGlob::imgconv( c, Form("root_mva/plots/overtrain_%s", methodTitle.Data()) ); 
+            else                           TMVAGlob::imgconv( c, Form("root_mva/plots/rarity_%s",  methodTitle.Data()) ); 
          }
          countCanvas++;
          

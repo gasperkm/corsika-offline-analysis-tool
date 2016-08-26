@@ -56,7 +56,7 @@ void annconvergencetest( TDirectory *lhdir )
    TMVAGlob::plot_logo(); // don't understand why this doesn't work ... :-(
    c->Update();
 
-   TString fname = "plots/annconvergencetest";
+   TString fname = "root_mva/plots/annconvergencetest";
    TMVAGlob::imgconv( c, fname );
 }
 

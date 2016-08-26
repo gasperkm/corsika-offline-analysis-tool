@@ -159,7 +159,7 @@ void correlationscatters( TString fin = "TMVA.root", TString var= "var3",
          if (countPad%noPadPerCanv==0) {
             canv->Update();
 
-            TString fname = Form( "plots/correlationscatter_%s_%s_c%i",var.Data(), extension.Data(), countCanvas );
+            TString fname = Form( "root_mva/plots/correlationscatter_%s_%s_c%i",var.Data(), extension.Data(), countCanvas );
             TMVAGlob::plot_logo();
             TMVAGlob::imgconv( canv, fname );
          }
@@ -167,7 +167,7 @@ void correlationscatters( TString fin = "TMVA.root", TString var= "var3",
       if (countPad%noPadPerCanv!=0) {
          canv->Update();
 
-         TString fname = Form( "plots/correlationscatter_%s_%s_c%i",var.Data(), extension.Data(), countCanvas );
+         TString fname = Form( "root_mva/plots/correlationscatter_%s_%s_c%i",var.Data(), extension.Data(), countCanvas );
          TMVAGlob::plot_logo();
          TMVAGlob::imgconv( canv, fname );
       }

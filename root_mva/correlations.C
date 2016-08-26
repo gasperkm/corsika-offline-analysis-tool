@@ -79,7 +79,7 @@ void correlations( TString fin = "TMVA.root", Bool_t isRegression = kFALSE,
       // TMVAGlob::plot_logo( );
       c->Update();
 
-      TString fname = "plots/";
+      TString fname = "root_mva/plots/";
       fname += hName[ic];
       TMVAGlob::imgconv( c, fname );
    }

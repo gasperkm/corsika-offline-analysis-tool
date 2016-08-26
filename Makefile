@@ -5,6 +5,7 @@ ROOTLIB=$(shell root-config --libs)
 
 SRCDIR=./src
 IDIR=./include
+MVADIR=./root_mva
 
 INC=-I$(ROOTINC) -I$(IDIR) -I$(AUGEROFFLINEROOT)/include/adst
 LIB=-L. -L$(AUGEROFFLINEROOT)/lib
@@ -13,7 +14,7 @@ LIBSO=-lRecEventKG -lAnalysisKG -lAugerEventIO -lAugerFramework -lAugerModules -
 #CFILES=$(shell find -maxdepth 1 -name "*.cc")
 CFILES=$(SRCDIR)/analysis_tool.cc $(SRCDIR)/massanalyse.cc $(SRCDIR)/adstanalyse.cc $(SRCDIR)/adst_mva.cc
 
-all: analysis_tool usage histogram_replot replot_usage rootadd rootadd_usage
+all: analysis_tool usage histogram_replot replot_usage rootadd rootadd_usage tmvagui tmvagui_usage
 debug: analysis_tool_dbg usage
 
 analysis_tool: $(CFILES) $(IDIR)/analysis_tool.h
@@ -49,5 +50,12 @@ rootadd: $(SRCDIR)/hadd.C
 rootadd_usage:	
 	@echo "\nUsage: ./hadd [OUTPUT FILE NAME] [INPUT FILE NAMES]\n"
 
+tmvagui: $(MVADIR)/TMVAGui.C
+	@echo "\nCompiling program for viewing MVA results."
+	$(CXX) -I$(ROOTINC) -I. $< -o tmvagui $(ROOTLIB)
+
+tmvagui_usage:	
+	@echo "\nUsage: ./tmvagui [MVA ANALYSIS INPUT FILE NAME]\n"
+
 clean:
-	rm -f analysis_tool $(IDIR)/workstation.h $(IDIR)/OfflineInclude.h histogram_replot hadd
+	rm -f analysis_tool $(IDIR)/workstation.h $(IDIR)/OfflineInclude.h histogram_replot hadd tmvagui $(MVADIR)/*.so $(MVADIR)/*.d

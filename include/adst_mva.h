@@ -25,6 +25,8 @@
 
 #include "TMVA/Factory.h"
 #include "TMVA/Tools.h"
+#include "TMVA/Reader.h"
+#include "TMVA/Config.h"
 
 #include "OfflineInclude.h"
 
@@ -37,16 +39,17 @@ public:
    Observables();
    virtual ~Observables();
 
-   double xmax;		// depth of shower maximum
-   double x0;		// GH shape parameter X0
-   double x1;		// GH shape parameter X1 (first interaction)
-   double lambda;	// GH shape parameter lambda
-   double shfoot;	// Shower foot
-   double fdenergy;	// Total energy from FD
-   double nrmu;		// number of muons at ground level
-   double ldf1000;	// S1000 or LDF signal at 1000m from the core
-   double ldfbeta;	// beta variable of the LDF
-   double curvature;	// curvature R
+   float xmax;		// depth of shower maximum
+   float x0;		// GH shape parameter X0 (0 is at first interaction point
+   float lambda;	// GH shape parameter lambda
+   float shfoot;	// Shower foot
+   float fdenergy;	// Total energy from FD
+   float nrmu;		// number of muons at ground level
+   float ldf1000;	// S1000 or LDF signal at 1000m from the core
+   float shwsize;	// Shower size... replacement for S1000?
+   float ldfbeta;	// beta variable of the LDF
+   float curvature;	// curvature R
+   float risetime;	// risetime
 };
 
 class AdstMva {
@@ -56,7 +59,7 @@ public:
    virtual ~AdstMva();
 
    // Rewrite
-   void RewriteObservables(int innr, Observables sig, Observables back);
+   void RewriteObservables(int innr, Observables sig, Observables back, TTree *back_tree);
 
    // Reconstructed event variables (from the ADST format)
    RecEvent *fRecEvent;
@@ -71,7 +74,8 @@ public:
    // Output file created for the MVA
    TFile *outfile;
    TTree *sig_tree;
-   TTree *back_tree;
+//   TTree *back_tree;
+   TTree *all_tree;
    std::string outname;
 
    // Active eyes

@@ -3,12 +3,15 @@
 #include "adstanalyse.h"
 #include "adst_mva.h"
 #include "workstation.h"
+
 #include <iostream>
 #include <iomanip>
 #include <sstream>
 #include <cstring>
+#include <cstdio>
 #include <stdlib.h>
 #include <cmath>
+#include <vector>
 
 using namespace std;
 
@@ -62,6 +65,266 @@ int CheckFormat(char *infile)
    }
    return 2;
 }
+
+void MethodList()
+{
+   cout << endl << "Possible MVA methods to use:" << endl;
+   cout << "- Cut optimisation:                                     Cuts, CutsD, CutsPCA, CutsGA, CutsSA" << endl
+        << "- 1-dimensional likelihood:                             Likelihood, LikelihoodD, LikelihoodPCA, LikelihoodKDE, LikelihoodMIX" << endl
+        << "- Multidimensional likelihood and nearest neighbours:   PDERS, PDERSD, PDERSPCA, PDEFoam, PDEFoamBoost, KNN" << endl
+        << "- Linear discriminant:                                  LD, Fisher, FisherG, BoostedFisher, HMatrix" << endl
+        << "- Functional discriminant:                              FDA_GA, FDA_SA, FDA_MC, FDA_MT, FDA_GAMT, FDA_MCMT" << endl
+        << "- Neural networks:                                      MLP, MLPBFGS, MLPBNN, CFMlpANN, TMlpANN" << endl
+        << "- Support vector machine:                               SVM" << endl
+        << "- Boosted decision trees:                               BDT, BDTG, BDTB, BDTD, BDTF" << endl
+        << "- Friedman's rulefit:                                   RuleFit" << endl
+        << "- Default collection of methods:                        Default" << endl;
+
+   cout << "Select one of the above MVA methods for analysis (comma separate multiple methods): ";
+}
+
+vector<string> AddVariables(TMVA::Factory *factory, vector<string> obs)
+{
+   if(obs[0] == "default")
+   {
+      vector<string> tempobs;
+
+      if(obs.size() > 1)
+      {
+         for(int i = 1; i < obs.size(); i++)
+         {
+            if((obs[i] != "xmax") && (obs[i] != "shfoot") && (obs[i] != "shwsize") && (obs[i] != "nrmu") && (obs[i] != "risetime"))
+               tempobs.push_back(obs[i]);
+         }
+      }
+
+      obs.erase(obs.begin(), obs.end());
+      obs.push_back("xmax");
+      obs.push_back("shfoot");
+      obs.push_back("shwsize");
+      obs.push_back("nrmu");
+      obs.push_back("risetime");
+
+      if(tempobs.size() > 0)
+      {
+         for(int i = 0; i < tempobs.size(); i++)
+	    obs.push_back(tempobs[i]);
+      }
+   }
+
+   for(int i = 0; i < obs.size(); i++)
+   {
+      if(obs[i] == "xmax")
+         factory->AddVariable(obs[i], 'F');
+
+      if(obs[i] == "x0")
+         factory->AddVariable(obs[i], 'F');
+
+      if(obs[i] == "lambda")
+         factory->AddVariable(obs[i], 'F');
+
+      if(obs[i] == "fdenergy")
+         factory->AddVariable(obs[i], 'F');
+
+      if(obs[i] == "shfoot")
+         factory->AddVariable(obs[i], 'F');
+
+      if(obs[i] == "ldf1000")
+         factory->AddVariable(obs[i], 'F');
+
+      if(obs[i] == "shwsize")
+         factory->AddVariable(obs[i], 'F');
+
+      if(obs[i] == "nrmu")
+         factory->AddVariable(obs[i], 'F');
+
+      if(obs[i] == "curvature")
+         factory->AddVariable(obs[i], 'F');
+
+      if(obs[i] == "risetime")
+         factory->AddVariable(obs[i], 'F');
+   }
+
+   return obs;
+}
+
+vector<string> BookTheMethod(TMVA::Factory *factory, vector<string> methods)
+{
+   if(methods[0] == "Default")
+   {
+      vector<string> tempmethods;
+
+      if(methods.size() > 1)
+      {
+         for(int i = 1; i < methods.size(); i++)
+         {
+            if((methods[i] != "Cuts") && (methods[i] != "CutsD") && (methods[i] != "Likelihood") && (methods[i] != "LikelihoodPCA") && (methods[i] != "PDERS") && (methods[i] != "KNN") && (methods[i] != "LD") && (methods[i] != "FDA_GA") && (methods[i] != "MLPBNN") && (methods[i] != "SVN") && (methods[i] != "BDT") && (methods[i] != "RuleFit"))
+               tempmethods.push_back(methods[i]);
+         }
+      }
+
+      methods.erase(methods.begin(), methods.end());
+      methods.push_back("Cuts");
+      methods.push_back("CutsD");
+      methods.push_back("Likelihood");
+      methods.push_back("LikelihoodPCA");
+      methods.push_back("PDERS");
+      methods.push_back("KNN");
+      methods.push_back("LD");
+      methods.push_back("FDA_GA");
+      methods.push_back("MLPBNN");
+      methods.push_back("SVN");
+      methods.push_back("BDT");
+      methods.push_back("RuleFit");
+
+      if(tempmethods.size() > 0)
+      {
+         for(int i = 0; i < tempmethods.size(); i++)
+	    methods.push_back(tempmethods[i]);
+      }
+   }
+
+   for(int i = 0; i < methods.size(); i++)
+   {
+      if(methods[i] == "Cuts")
+         factory->BookMethod(TMVA::Types::kCuts, methods[i], "!H:!V:FitMethod=MC:EffSel:SampleSize=200000:VarProp=FSmart");
+
+      if(methods[i] == "CutsD")
+         factory->BookMethod(TMVA::Types::kCuts, methods[i], "!H:!V:FitMethod=MC:EffSel:SampleSize=200000:VarProp=FSmart:VarTransform=Decorrelate");
+
+      if(methods[i] == "CutsPCA")
+         factory->BookMethod(TMVA::Types::kCuts, methods[i], "!H:!V:FitMethod=MC:EffSel:SampleSize=200000:VarProp=FSmart:VarTransform=PCA");
+
+      if(methods[i] == "CutsGA")
+         factory->BookMethod(TMVA::Types::kCuts, methods[i], "H:!V:FitMethod=GA:CutRangeMin[0]=-10:CutRangeMax[0]=10:VarProp[1]=FMax:EffSel:Steps=30:Cycles=3:PopSize=400:SC_steps=10:SC_rate=5:SC_factor=0.95");
+
+      if(methods[i] == "CutsSA")
+         factory->BookMethod(TMVA::Types::kCuts, methods[i], "!H:!V:FitMethod=SA:EffSel:MaxCalls=150000:KernelTemp=IncAdaptive:InitialTemp=1e+6:MinTemp=1e-6:Eps=1e-10:UseDefaultScale");
+
+      if(methods[i] == "Likelihood")
+         factory->BookMethod(TMVA::Types::kLikelihood, methods[i], "H:!V:TransformOutput:PDFInterpol=Spline2:NSmoothSig[0]=20:NSmoothBkg[0]=20:NSmoothBkg[1]=10:NSmooth=1:NAvEvtPerBin=50");
+
+      if(methods[i] == "LikelihoodD")
+         factory->BookMethod(TMVA::Types::kLikelihood, methods[i], "!H:!V:TransformOutput:PDFInterpol=Spline2:NSmoothSig[0]=20:NSmoothBkg[0]=20:NSmooth=5:NAvEvtPerBin=50:VarTransform=Decorrelate");
+
+      if(methods[i] == "LikelihoodPCA")
+         factory->BookMethod(TMVA::Types::kLikelihood, methods[i], "!H:!V:!TransformOutput:PDFInterpol=Spline2:NSmoothSig[0]=20:NSmoothBkg[0]=20:NSmooth=5:NAvEvtPerBin=50:VarTransform=PCA"); 
+
+      if(methods[i] == "LikelihoodKDE")
+         factory->BookMethod(TMVA::Types::kLikelihood, methods[i], "!H:!V:!TransformOutput:PDFInterpol=KDE:KDEtype=Gauss:KDEiter=Adaptive:KDEFineFactor=0.3:KDEborder=None:NAvEvtPerBin=50"); 
+
+      if(methods[i] == "LikelihoodMIX")
+         factory->BookMethod(TMVA::Types::kLikelihood, methods[i], "!H:!V:!TransformOutput:PDFInterpolSig[0]=KDE:PDFInterpolBkg[0]=KDE:PDFInterpolSig[1]=KDE:PDFInterpolBkg[1]=KDE:PDFInterpolSig[2]=Spline2:PDFInterpolBkg[2]=Spline2:PDFInterpolSig[3]=Spline2:PDFInterpolBkg[3]=Spline2:KDEtype=Gauss:KDEiter=Nonadaptive:KDEborder=None:NAvEvtPerBin=50"); 
+
+      if(methods[i] == "PDERS")
+         factory->BookMethod(TMVA::Types::kPDERS, methods[i], "!H:!V:NormTree=T:VolumeRangeMode=Adaptive:KernelEstimator=Gauss:GaussSigma=0.3:NEventsMin=400:NEventsMax=600");
+
+      if(methods[i] == "PDERSD")
+         factory->BookMethod(TMVA::Types::kPDERS, methods[i], "!H:!V:VolumeRangeMode=Adaptive:KernelEstimator=Gauss:GaussSigma=0.3:NEventsMin=400:NEventsMax=600:VarTransform=Decorrelate");
+
+      if(methods[i] == "PDERSPCA")
+         factory->BookMethod(TMVA::Types::kPDERS, methods[i], "!H:!V:VolumeRangeMode=Adaptive:KernelEstimator=Gauss:GaussSigma=0.3:NEventsMin=400:NEventsMax=600:VarTransform=PCA");
+
+      if(methods[i] == "PDEFoam")
+         factory->BookMethod(TMVA::Types::kPDEFoam, methods[i], "!H:!V:SigBgSeparate=F:TailCut=0.001:VolFrac=0.0666:nActiveCells=500:nSampl=2000:nBin=5:Nmin=100:Kernel=None:Compress=T");
+
+      if(methods[i] == "PDEFoamBoost")
+         factory->BookMethod(TMVA::Types::kPDEFoam, methods[i], "!H:!V:Boost_Num=30:Boost_Transform=linear:SigBgSeparate=F:MaxDepth=4:UseYesNoCell=T:DTLogic=MisClassificationError:FillFoamWithOrigWeights=F:TailCut=0:nActiveCells=500:nBin=20:Nmin=400:Kernel=None:Compress=T");
+
+      if(methods[i] == "KNN")
+         factory->BookMethod(TMVA::Types::kKNN, methods[i], "H:nkNN=20:ScaleFrac=0.8:SigmaFact=1.0:Kernel=Gaus:UseKernel=F:UseWeight=T:!Trim");
+
+      if(methods[i] == "LD")
+         factory->BookMethod(TMVA::Types::kLD, methods[i], "H:!V:VarTransform=None:CreateMVAPdfs:PDFInterpolMVAPdf=Spline2:NbinsMVAPdf=50:NsmoothMVAPdf=10");
+
+      if(methods[i] == "Fisher")
+         factory->BookMethod(TMVA::Types::kFisher, methods[i], "H:!V:Fisher:VarTransform=None:CreateMVAPdfs:PDFInterpolMVAPdf=Spline2:NbinsMVAPdf=50:NsmoothMVAPdf=10");
+
+      if(methods[i] == "FisherG")
+         factory->BookMethod(TMVA::Types::kFisher, methods[i], "H:!V:VarTransform=Gauss");
+
+      if(methods[i] == "BoostedFisher")
+         factory->BookMethod(TMVA::Types::kFisher, methods[i], "H:!V:Boost_Num=20:Boost_Transform=log:Boost_Type=AdaBoost:Boost_AdaBoostBeta=0.2:!Boost_DetailedMonitoring");
+
+      if(methods[i] == "HMatrix")
+         factory->BookMethod(TMVA::Types::kHMatrix, methods[i], "!H:!V:VarTransform=None");
+
+      if(methods[i] == "FDA_GA")
+         factory->BookMethod(TMVA::Types::kFDA, methods[i], "H:!V:Formula=(0)+(1)*x0+(2)*x1+(3)*x2+(4)*x3:ParRanges=(-1,1);(-10,10);(-10,10);(-10,10);(-10,10):FitMethod=GA:PopSize=300:Cycles=3:Steps=20:Trim=True:SaveBestGen=1");
+
+      if(methods[i] == "FDA_SA")
+         factory->BookMethod(TMVA::Types::kFDA, methods[i], "H:!V:Formula=(0)+(1)*x0+(2)*x1+(3)*x2+(4)*x3:ParRanges=(-1,1);(-10,10);(-10,10);(-10,10);(-10,10):FitMethod=SA:MaxCalls=15000:KernelTemp=IncAdaptive:InitialTemp=1e+6:MinTemp=1e-6:Eps=1e-10:UseDefaultScale");
+
+      if(methods[i] == "FDA_MC")
+         factory->BookMethod(TMVA::Types::kFDA, methods[i], "H:!V:Formula=(0)+(1)*x0+(2)*x1+(3)*x2+(4)*x3:ParRanges=(-1,1);(-10,10);(-10,10);(-10,10);(-10,10):FitMethod=MC:SampleSize=100000:Sigma=0.1");
+
+      if(methods[i] == "FDA_MT")
+         factory->BookMethod(TMVA::Types::kFDA, methods[i], "H:!V:Formula=(0)+(1)*x0+(2)*x1+(3)*x2+(4)*x3:ParRanges=(-1,1);(-10,10);(-10,10);(-10,10);(-10,10):FitMethod=MINUIT:ErrorLevel=1:PrintLevel=-1:FitStrategy=2:UseImprove:UseMinos:SetBatch");
+
+      if(methods[i] == "FDA_GAMT")
+         factory->BookMethod(TMVA::Types::kFDA, methods[i], "H:!V:Formula=(0)+(1)*x0+(2)*x1+(3)*x2+(4)*x3:ParRanges=(-1,1);(-10,10);(-10,10);(-10,10);(-10,10):FitMethod=GA:Converger=MINUIT:ErrorLevel=1:PrintLevel=-1:FitStrategy=0:!UseImprove:!UseMinos:SetBatch:Cycles=1:PopSize=5:Steps=5:Trim");
+
+      if(methods[i] == "FDA_MCMT")
+         factory->BookMethod(TMVA::Types::kFDA, methods[i], "H:!V:Formula=(0)+(1)*x0+(2)*x1+(3)*x2+(4)*x3:ParRanges=(-1,1);(-10,10);(-10,10);(-10,10);(-10,10):FitMethod=MC:Converger=MINUIT:ErrorLevel=1:PrintLevel=-1:FitStrategy=0:!UseImprove:!UseMinos:SetBatch:SampleSize=20");
+
+      if(methods[i] == "MLP")
+         factory->BookMethod(TMVA::Types::kMLP, methods[i], "H:!V:NeuronType=tanh:VarTransform=N:NCycles=600:HiddenLayers=N+5:TestRate=5:!UseRegulator");
+
+      if(methods[i] == "MLPBFGS")
+         factory->BookMethod(TMVA::Types::kMLP, methods[i], "H:!V:NeuronType=tanh:VarTransform=N:NCycles=600:HiddenLayers=N+5:TestRate=5:TrainingMethod=BFGS:!UseRegulator");
+
+      if(methods[i] == "MLPBNN")
+         factory->BookMethod(TMVA::Types::kMLP, methods[i], "H:!V:NeuronType=tanh:VarTransform=N:NCycles=600:HiddenLayers=N+5:TestRate=5:TrainingMethod=BFGS:UseRegulator");
+
+      if(methods[i] == "CFMlpANN")
+         factory->BookMethod(TMVA::Types::kCFMlpANN, methods[i], "!H:!V:NCycles=2000:HiddenLayers=N+1,N");
+
+      if(methods[i] == "TMlpANN")
+         factory->BookMethod(TMVA::Types::kTMlpANN, methods[i], "!H:!V:NCycles=200:HiddenLayers=N+1,N:LearningMethod=BFGS:ValidationFraction=0.3");
+
+      if(methods[i] == "SVM")
+         factory->BookMethod(TMVA::Types::kSVM, methods[i], "Gamma=0.25:Tol=0.001:VarTransform=Norm");
+
+      if(methods[i] == "BDT")
+         factory->BookMethod(TMVA::Types::kBDT, methods[i], "!H:!V:NTrees=850:MinNodeSize=2.5%:MaxDepth=3:BoostType=AdaBoost:AdaBoostBeta=0.5:UseBaggedBoost:BaggedSampleFraction=0.5:SeparationType=GiniIndex:nCuts=20");
+
+      if(methods[i] == "BDTG")
+         factory->BookMethod(TMVA::Types::kBDT, methods[i], "!H:!V:NTrees=1000:MinNodeSize=2.5%:BoostType=Grad:Shrinkage=0.10:UseBaggedBoost:BaggedSampleFraction=0.5:nCuts=20:MaxDepth=2");
+
+      if(methods[i] == "BDTB")
+         factory->BookMethod(TMVA::Types::kBDT, methods[i], "!H:!V:NTrees=400:BoostType=Bagging:SeparationType=GiniIndex:nCuts=20");
+
+      if(methods[i] == "BDTD")
+         factory->BookMethod(TMVA::Types::kBDT, methods[i], "!H:!V:NTrees=400:MinNodeSize=5%:MaxDepth=3:BoostType=AdaBoost:SeparationType=GiniIndex:nCuts=20:VarTransform=Decorrelate");
+
+      if(methods[i] == "BDTF")
+         factory->BookMethod(TMVA::Types::kBDT, "BDTMitFisher", "!H:!V:NTrees=50:MinNodeSize=2.5%:UseFisherCuts:MaxDepth=3:BoostType=AdaBoost:AdaBoostBeta=0.5:SeparationType=GiniIndex:nCuts=20");
+
+      if(methods[i] == "RuleFit")
+         factory->BookMethod(TMVA::Types::kRuleFit, methods[i], "H:!V:RuleFitModule=RFTMVA:Model=ModRuleLinear:MinImp=0.001:RuleMinDist=0.001:NTrees=20:fEventsMin=0.01:fEventsMax=0.5:GDTau=-1.0:GDTauPrec=0.01:GDStep=0.01:GDNSteps=10000:GDErrScale=1.02");
+
+   }
+
+   return methods;
+}
+
+struct tokens: std::ctype<char> 
+{
+   tokens(): std::ctype<char>(get_table()) {}
+
+   static std::ctype_base::mask const* get_table()
+   {
+      typedef std::ctype<char> cctype;
+      static const cctype::mask *const_rc= cctype::classic_table();
+
+      static cctype::mask rc[cctype::table_size];
+      std::memcpy(rc, const_rc, cctype::table_size * sizeof(cctype::mask));
+
+      rc[','] = std::ctype_base::space; 
+      rc[' '] = std::ctype_base::space; 
+      return &rc[0];
+   }
+};
 
 // Main function
 int main(int argc, char **argv)
@@ -343,2600 +606,390 @@ int main(int argc, char **argv)
       delete mantool;
       delete aantool;
 
+      // Prepare output file
+      stemp = "tmva.root";
+
+      // Determine if a writeout to tmva.root is needed, or if only a TMVA analysis should be performed
+      int writeAnalysis = -1;
       if(mvatool->inname.size() == 0)
       {
-         delete mvatool;
-         return -1;
+         cout << "No input files supplied. Only running a MVA analysis on the existing tmva.root." << endl;
+	 writeAnalysis = 1;
       }
       else
       {
-         // Prepare output file
-//         cout << "Please select the output name of the MVA analysis file (extension .root): ";
-//         cin >> stemp;
-stemp = "tmva.root";
-
-         // Determine if a writeout to tmva.root is needed, or if only a TMVA analysis should be performed
-	 int writeAnalysis = -1;
          cout << "Write out observables to tmva.root (0) or just create a MVA analysis on the existing tmva.root (1)? ";
-	 cin >> writeAnalysis;
-	 while( (writeAnalysis != 0) && (writeAnalysis != 1) )
-	 {
+         cin >> writeAnalysis;
+         while( (writeAnalysis != 0) && (writeAnalysis != 1) )
+         {
             cout << "Error: Please select a valid option." << endl << "Write out observables to tmva.root (0) or just create a MVA analysis on the existing tmva.root (1)? ";
-	    cin >> writeAnalysis;
-	 }
-
-         mvatool->outname = string(BASEDIR) + "/" + stemp;
-	 if(writeAnalysis == 0)
-	 {
-            mvatool->outfile = TFile::Open((mvatool->outname).c_str(),"RECREATE");
-
-            // Prepare observable values for signal and background
-	    Observables obssig, obsback;
-            mvatool->back_tree = new TTree("TreeB", "Background tree from all signal files.");
-         
-	    // Start rewriting (for all input files)
-            for(int i = 0; i < mvatool->inname.size(); i++)
-	       mvatool->RewriteObservables(i, obssig, obsback);
-
-	    mvatool->back_tree->Write();
-
-            // Close all open files
-            mvatool->outfile->Close();
-	    mvatool->fFile->Close();
-	 }
-
-	 // Start performing the MVA analysis - TODO: make this working correctly
-	 TFile *ofile = TFile::Open("tmva_output.root","RECREATE");
-	 // Factory usage:
-	 // - user-defined job name, reappearing in names of weight files for training results ("TMVAClassification")
-	 // - pointer to an output file (ofile)
-	 // - options
-	 // Factory has the following options:
-	 // 	V = verbose
-	 // 	Silent = batch mode
-	 // 	Color = colored screen output
-	 // 	DrawProgressBar = progress bar display during training and testing
-	 // 	Transformations = the transformations to make (identity, decorrelation, PCA, uniform, gaussian, gaussian decorrelation)
-	 // 	AnalysisType = setting the analysis type (Classification, Regression, Multiclass, Auto)
-	 // Default values = !V:!Silent:Color:DrawProgressBar:Transformations=I;D;P;G,D:AnalysisType=Auto
-	 TMVA::Factory *factory = new TMVA::Factory("TMVAClassification",ofile,"!V:!Silent:Color:DrawProgressBar:Transformations=I;D;P;G,D:AnalysisType=Classification");
-
-	 // Add variables to be used (similar for spectators and targets):
-	 // - name of the variable as defined in the input file
-	 // - type of the variable (can be int = 'I' or float/double = 'F')
-	 // Additionally, can also have a title and the units for the variable: factory->AddVariable("name","title","unit",'F');
-         factory->AddVariable("xmax", 'F');
-         factory->AddVariable("x0", 'F');
-         factory->AddVariable("lambda", 'F');
-//         factory->AddVariable("fdenergy", 'F');
-         factory->AddVariable("shfoot", 'F');
-         factory->AddVariable("ldf1000", 'F');
-//         factory->AddVariable("ldfbeta", 'F');
-         factory->AddVariable("nrmu", 'F');
-         factory->AddVariable("curvature", 'F');
-
-	 // Open up the input file and ask which signal tree we want to check
-	 int whichAnalysis = -1;
-         string signalName = "TreeS1";
-
-         TFile *ifile = TFile::Open(stemp.c_str());
-         if(ifile->GetListOfKeys()->Contains("TreeB"))
-	 {
-            cout << endl << "There are " << ifile->GetNkeys()-1 << " signal trees available:" << endl;
-	    for(int i = 1; i < ifile->GetNkeys(); i++)
-	    {
-               signalName = "TreeS" + IntToStr(i);
-	       cout << "- " << i << ": " << ifile->GetKey(signalName.c_str())->GetTitle() << endl;
-	    }
-	    cout << endl << "Select one to analyze (1-" << ifile->GetNkeys()-1 << "): ";
-	    cin >> whichAnalysis;
-
-	    while( (whichAnalysis >= ifile->GetNkeys()) || (whichAnalysis < 1) )
-	    {
-               cout << "Error: Wrong selection." << endl << "There are " << ifile->GetNkeys()-1 << " signal trees available. Select one to analyze (1-" << ifile->GetNkeys()-1 << "): ";
-	       cin >> whichAnalysis;
-	    }
-
-	    signalName = "TreeS" + IntToStr(whichAnalysis);
-	 }
-
-	 // Getting signal and background trees for training and testing (can supply multiple trees)
-	 TTree *signal = (TTree*)ifile->Get(signalName.c_str());
-	 TTree *background = (TTree*)ifile->Get("TreeB");
-
-	 // Add all the trees to the factory with overall weights for the complete sample
-	 factory->AddSignalTree(signal, 1.0);
-	 factory->AddBackgroundTree(background, 1.0);
-
-	 // Preparing and training from the trees:
-	 // - preselection cuts make cuts on input variables, before even starting the MVA
-	 // - options
-	 // These are the possible options:
-	 // 	nTrain_Signal = number of training events of class Signal (0 takes all)
-	 // 	nTrain_Background = number of training events of class Background (0 takes all)
-	 // 	nTest_Signal = number of test events of class Signal (0 takes all)
-	 // 	nTest_Background = number of test events of class Background (0 takes all)
-	 // 	SplitMode = method of choosing training and testing events (Random, Alternate, Block)
-	 //	NormMode = renormalisation of event-by-event weights for training (NumEvents: average weight of 1 per event for signal and background, EqualNumEvents: average weight of 1 per event for signal and sum of weights for background equal to sum of weights for signal, None)
-	 //	V = verbose
-	 //	MixMode = method of mixing events of different classes into one dataset (SameAsSplitMode, Random, Alternate, Block)
-	 //	SplitSeed = seed for random event shuffling (default = 100)
-	 //	VerboseLevel = level of verbose (Debug, Verbose, Info)
-	 factory->PrepareTrainingAndTestTree("", "", "nTrain_Signal=0:nTrain_Background=0:SplitMode=Random:NormMode=NumEvents:!V");
-	 // Booking MVA methods:
-	 // - type of MVA method to be used (all defined in src/Types.h)
-	 // - the unique name for the MVA method suplied by the user
-	 // - options
-	 // The possible options for each method are defined here: http://tmva.sourceforge.net/optionRef.html
-	 // For example:
-	 // 	H = print method-specific help message
-	 // 	V = verbose
-	 // 	NeuronType = neuron activation function type (default = sigmoid)
-	 // 	VarTransform = list of variable transformations to do before training (D_Background,P_Signal,G,N_AllClasses -> N = Normalization for all classes)
-	 // 	NCycles = number of training cycles
-	 // 	HiddenLayers = hidden layer architecture (default = N,N-1)
-	 // 	TestRate = test for overtraining at each #th epoch (default = 10)
-	 // 	TrainingMethod = train with back propagation (BP), BFGS algorithm (BFGS) or generic algorithm (GA)
-	 // 	UseRegulator = use regulator to avoid overtraining
-	 factory->BookMethod( TMVA::Types::kMLP, "MLPBNN", "H:!V:NeuronType=tanh:VarTransform=N:NCycles=60:HiddenLayers=N+5:TestRate=5:TrainingMethod=BFGS:UseRegulator" );
-	 // Train the selected methods and save them to the weights folder
-	 factory->TrainAllMethods();
-	 // Test the selected methods by applying the trained data to the test data set -> outputs saved to TestTree output file and then to the output ROOT file
-	 factory->TestAllMethods();
-	 // Evaluation of methods printed to stdout
-	 factory->EvaluateAllMethods();
-
-         ifile->Close();
-	 delete factory;
-         ofile->Close();
-
-         delete mvatool;
+            cin >> writeAnalysis;
+         }
       }
-   }
-
-   return 0;
-}
 /*
-// Analysis tools class constructor and destructor ------------------------------------------------------
-//    Define the TTree names, set up and delete the canvas
-AnalyseTool::AnalyseTool()
-{
-   showsimname = "showsimdata";
-   showsrecname = "showsrecdata";
-   srecldfname = "srecldfdata";
-   showtankname = "showtankdata";
-   tankvemname = "tankvem_";
-   showfrecname = "showfrecdata";
-   showeyename = "showeyedata";
-   eyelongname = "eyelong_";
-
-   c1 = new TCanvas("c1","c1",1200,800);
-   c1->SetGrid();
-
-   xmaxlimit = 0;
-   slantset = -1;
-   shfootlimit = 0;
-   pointcnt = 0;
-   btemp = SUBPLOT;
-
-   for(int i = 0; i < ALLEYES; i++)
-      eyevalid[i] = 0;
-}
-
-AnalyseTool::~AnalyseTool()
-{
-   outdata.close();
-   delete c1;
-}
-// ------------------------------------------------------------------------------------------------------
-
-// User given control to define type of analysis --------------------------------------------------------
-//    Gives quick information on the program and gives possibilities for the analysis
-void AnalyseTool::Hello()
-{
-   cout << "# Entering function AnalyseTool::Hello()..." << endl;
-   string stemp;
-   analysistype = 0;
-   int itemp[2];
-
-   // Hello display
-   if(filesel == 0)
-   {
-      cout << endl;
-      cout << "------------------------------------------------------------------------------------" << endl;
-      cout << "--- Analysis tool for Offline (single ROOT analysis file mode)----------------------" << endl;
-      cout << "------------------------------------------------------------------------------------" << endl;
-      cout << " This is the analysis tool for data saved to a ROOT analysis file. It handles       " << endl
-           << " plotting of all saved observables versus any other observable and plotting of tank " << endl
-	   << " VEM signals, eye longitudinal profiles and SD reconstructed LDF functions.         " << endl << endl;
-      cout << " The following analysis is possible:                                                " << endl
-           << "    1 = Plot observables vs. other observables.                                     " << endl
-	   << "    2 = Plot profiles (VEM signal, LDF profile, longitudinal profile).              " << endl
-	   << "    3 = More to come                                                                " << endl;
-      cout << "------------------------------------------------------------------------------------" << endl;
-      cout << " Please select the analysis to perform: ";
-      cin >> analysistype;
-      cout << "------------------------------------------------------------------------------------" << endl;
-   }
-   
-   if(filesel == 1)
-   {
-      cout << endl;
-      cout << "------------------------------------------------------------------------------------" << endl;
-      cout << "--- Analysis tool for Offline (multiple ROOT analysis file mode)--------------------" << endl;
-      cout << "------------------------------------------------------------------------------------" << endl;
-      cout << " This is the analysis tool for data saved to multiple ROOT analysis files. It       " << endl
-           << " handles plotting of all saved observables versus any other observable and plotting " << endl
-	   << " of tank VEM signals, eye longitudinal profiles and SD reconstructed LDF functions. " << endl
-	   << " The program produces an average of observables over all tanks and eyes, enabling   " << endl
-	   << " comparison of observables from multiple shower simulations.                        " << endl;
-      cout << "------------------------------------------------------------------------------------" << endl;
-      // For now automatically use the first analysis type
-      analysistype = 1;
-   }
-
-   // Plot observables
-   if(analysistype == 1)
-   {
-      if(filesel == 0)
+      if((mvatool->inname.size() == 0) && (writeAnalysis == 0))
       {
-         cout << " To plot observables, use the following notation: [obs1]:[obs2]                     " << endl; 
-         cout << " Using only one will produce a histogram, using two will produce a scatter plot.    " << endl
-              << " [obs1] will in this case be the quantity on the y-axis and [obs2] the quantity on  " << endl
-              << " the x-axis.                                                                        " << endl;
-         cout << " The possible observables are:                                                      " << endl
-              << "    stationid      = Unique ID of the SD tank.                                      " << endl
-              << "    totalvem       = Total VEM signal from the SD tank.                             " << endl
-              << "    starttime.nsec = Nanosecond time when SD tank was triggered.                    " << endl
-              << "    distance       = Distance from the shower core (SD reconstruction).             " << endl
-              << "    muoncount      = Number of simulated muons in an SD tank.                       " << endl << endl
-              << "    eyeid          = Unique ID of the FD eye.                                       " << endl
-              << "    energy         = Reconstructed total shower energy from the FD eye.             " << endl
-              << "    emenergy       = Reconstructed EM shower energy from the FD eye.                " << endl
-              << "    xmax           = Reconstructed Xmax from the FD eye.                            " << endl;
-      }
-      else if(filesel == 1)
-      {
-         cout << " To plot observables, use the following notation: [obs1]:[obs2]:[obs3]              " << endl; 
-         cout << " Using only one will produce a histogram, using two will produce a scatter plot,    " << endl
-              << " using three will produce a color 2D histogram. [obs1] will in this case be the     " << endl
-	      << " quantity on the x-axis, [obs2] the quantity on the y-axis and [obs3] the quantity  " << endl
-              << " on the the color axis (z-axis).                                                    " << endl;
-         cout << " The possible observables are:                                                      " << endl
-              << "    actstation     = Number of activated SD tanks for selected reconstruction.       (SD)" << endl
-              << "    totalvemmax    = Total VEM signal from SD tank with maximal VEM signal.          (SD)" << endl
-              << "    totalvemaver   = Total VEM signal averaged over all active SD tanks.             (SD average)" << endl
-              << "    totalvemsum    = Total VEM signal sum from all active SD tanks.                  (SD)" << endl
-	      << "    risetime       = Risetime averaged over all active SD tanks.                     (SD average)" << endl
-	      << "    risetimeearly  = Risetime averaged over all active SD tanks (start time < mean). (SD)" << endl
-	      << "    risetimelate   = Risetime averaged over all active SD tanks (start time > mean). (SD)" << endl
-	      << "    sdenergy       = Reconstructed total energy from active SD tanks.                (SD)" << endl
-              << "    S1000          = Reconstructed S1000 value from active SD tanks (LDF at 1000m).  (SD)" << endl
-              << "    curvature      = Reconstructed curvature value from active SD tanks.             (SD)" << endl
-              << "    distaver       = Average distance from the shower core of all active SD tanks.   (SD average)" << endl
-              << "    muoncount      = Total number of simulated muons from all active SD tanks.       (SD)" << endl
-              << "    muoncountaver  = Number of simulated muons averaged over all active SD tanks.    (SD average)" << endl << endl
-              << "    acteyes        = Number of activated FD eyes for selected reconstruction.        (FD)" << endl
-              << "    fdenergy       = Reconstructed total energy averaged over active FD eyes.        (FD average)" << endl
-              << "    fdemenergy     = Reconstructed EM energy averaged over active FD eyes.           (FD average)" << endl
-              << "    xmax           = Reconstructed Xmax averaged over active FD eyes.                (FD average)" << endl
-              << "    xmaxqual       = Reconstructed Xmax of FD eye with smallest error on Xmax.       (FD)" << endl
-	      << "    shfoot         = Depth when shower reaches N\% of cumulative long. profile.       (FD average)" << endl;
-      }
-      cout << "------------------------------------------------------------------------------------" << endl;
-      cout << " Please enter the plot directive: ";
-      cin >> plotdirective;
-      cout << "------------------------------------------------------------------------------------" << endl;
-   }
-   // Plot profiles
-   else if(analysistype == 2)
-   {
-      if(filesel == 0)
-      {
-         cout << " To plot profiles, use one the following:                                           " << endl 
-              << "    ldf           = Plot the LDF profile (SD reconstruction).                       " << endl
-              << "    vemsig:[ID]   = Plot the VEM signal from the selected tank with ID = [ID].      " << endl
-              << "    longprof:[ID] = Plot the longitudinal profile from an eye with ID = [ID].       " << endl << endl
-              << " When using [ID]=all, profiles for all tanks/eyes will be created and saved.        " << endl;
-         cout << "------------------------------------------------------------------------------------" << endl;
-         stemp = GetActiveTanks();
-         cout << " SD tanks available: " << endl << "    " << stemp << endl;
-         stemp = GetActiveEyeList();
-         cout << " FD eyes available: " << endl << "    " << stemp << endl;
-         if( (nracttanks > 0) || (nracteyes > 0) )
-         {
-            cout << "------------------------------------------------------------------------------------" << endl;
-            cout << " Please enter the plot directive: ";
-            cin >> plotdirective;
-            cout << "------------------------------------------------------------------------------------" << endl;
-
-            if( btemp && (plotdirective.find("longprof") != string::npos) )
-            {
-               cout << " Enter fraction of particles in longitudinal profile that still count for shfoot: ";
-               cin >> shfootlimit;
-               cout << "------------------------------------------------------------------------------------" << endl;
-            }
-         }
-         else
-            plotdirective = "-1";
-      }
-      else if(filesel == 1)
-      {
-         // TODO
-         plotdirective = "-1";
-      }
-   }
-   // More to come
-   else if(analysistype == 3)
-   {
-      cout << " More to come..."  << endl; 
-      cout << "------------------------------------------------------------------------------------" << endl;
-      cout << " Please enter the plot directive: ";
-      cin >> plotdirective;
-      cout << "------------------------------------------------------------------------------------" << endl;
-      plotdirective = "-1";
-   }
-   // Default plot directive (will stop any further analysis)
-   else
-   {
-      cout << " Analysis type not supported." << endl;
-      cout << "------------------------------------------------------------------------------------" << endl;
-      plotdirective = "-1";
-   }
-}
-// ------------------------------------------------------------------------------------------------------
-
-// Initialise X, Y and Z plot ranges for later use, saves/returns input filename ------------------------
-void AnalyseTool::InitRanges()
-{
-   cout << "# Entering function AnalyseTool::InitRanges()..." << endl;
-   xrange[0] = 1.e+40;
-   xrange[1] = -1.e+40;
-   yrange[0] = 1.e+40;
-   yrange[1] = -1.e+40;
-   zrange[0] = 1.e+40;
-   zrange[1] = -1.e+40;
-}
-
-void AnalyseTool::SetAnalysisFilename(char *file)
-{
-   cout << "# Entering function AnalyseTool::SetAnalysisFilename()..." << endl;
-   analysisfile = string(file);
-}
-
-string AnalyseTool::GetAnalysisFilename()
-{
-   cout << "# Entering function AnalyseTool::GetAnalysisFilename()..." << endl;
-   return analysisfile;
-}
-// ------------------------------------------------------------------------------------------------------
-
-// Save tank and eye trees to a TTree variable ----------------------------------------------------------
-void AnalyseTool::GetDefaultTrees()
-{
-   cout << "# Entering function AnalyseTool::GetDefaultTrees()..." << endl;
-   infile->GetObject(showsimname.c_str(), showsimdata);
-   infile->GetObject(showsrecname.c_str(), showsrecdata);
-   infile->GetObject(srecldfname.c_str(), srecldfdata);
-   infile->GetObject(showtankname.c_str(), showtankdata);
-   infile->GetObject(showfrecname.c_str(), showfrecdata);
-   infile->GetObject(showeyename.c_str(), showeyedata);
-}
-
-// tankid = ID of the tank that is currently selected
-void AnalyseTool::GetTankTree(int tankid)
-{
-   cout << "# Entering function AnalyseTool::GetTankTree()..." << endl;
-   string stemp = tankvemname + IntToStr(tankid);
-//   cout << "Tank tree name: " << stemp << endl;
-   infile->GetObject(stemp.c_str(), curtankvemdata);
-}
-
-// eyeid = ID of the FD eye that is currently selected
-void AnalyseTool::GetEyeTree(int eyeid)
-{
-   cout << "# Entering function AnalyseTool::GetEyeTree()..." << endl;
-   string stemp;
-   if(eyeid == 1)
-      stemp = eyelongname + "LL";
-   else if(eyeid == 2)
-      stemp = eyelongname + "LM";
-   else if(eyeid == 3)
-      stemp = eyelongname + "LA";
-   else if(eyeid == 4)
-      stemp = eyelongname + "CO";
-
-//   cout << "Eye tree name: " << stemp << endl;
-   infile->GetObject(stemp.c_str(), cureyelongdata);
-}
-// ------------------------------------------------------------------------------------------------------
-
-// Retrieve and save the tanks that are triggered in the reconstruction ---------------------------------
-string AnalyseTool::GetActiveTanks()
-{
-   cout << "# Entering function AnalyseTool::GetActiveTanks()..." << endl;
-   showsrecdata->SetBranchAddress("actstation", &nracttanks);
-   showsrecdata->GetEntry(0);
-
-   if( acttanks.size() != 0 )
-      acttanks.erase(acttanks.begin(),acttanks.end());
-
-   int tankid;
-   string stemp;
-
-   if(nracttanks == 0)
-      return "    No reconstructed SD tanks.";
-   else if(nracttanks == 1)
-   {
-      showtankdata->SetBranchAddress("stationid", &tankid);
-      showtankdata->GetEntry(0);
-
-      stemp = IntToStr(tankid);
-      acttanks.push_back(tankid);
-   }
-   else
-   {
-      showtankdata->SetBranchAddress("stationid", &tankid);
-
-      for(int i = 0; i < nracttanks; i++)
-      {
-         showtankdata->GetEntry(i);
-         if(i == 0)
-            stemp = IntToStr(tankid);
-         else
-            stemp = stemp + ", " + IntToStr(tankid);
-         acttanks.push_back(tankid);
-      }
-   }
-
-   return stemp;
-}
-
-// ------------------------------------------------------------------------------------------------------
-
-// Retrieve and save the FD eyes that are triggered in the reconstruction, produce a list ---------------
-string AnalyseTool::GetActiveEyes()
-{
-   cout << "# Entering function AnalyseTool::GetActiveEyes()..." << endl;
-   showfrecdata->SetBranchAddress("acteyes", &nracteyes);
-   showfrecdata->GetEntry(0);
-
-   for(int i = 0; i < ALLEYES; i++)
-      eyevalid[i] = 0;
-
-   // Check to see which longitudinal profiles are saved in the file
-   if( infile->GetListOfKeys()->Contains("eyelong_LL") )
-      eyevalid[0] = 1;
-   if( infile->GetListOfKeys()->Contains("eyelong_LM") )
-      eyevalid[1] = 1;
-   if( infile->GetListOfKeys()->Contains("eyelong_LA") )
-      eyevalid[2] = 1;
-   if( infile->GetListOfKeys()->Contains("eyelong_CO") )
-      eyevalid[3] = 1;
-
-   int eyeid;
-   int counter = 0;
-   string stemp;
-
-   if(nracteyes == 0)
-   {
-      for(int i = 0; i < ALLEYES; i++)
-         if(eyevalid[i] == 1)
-	    eyevalid[i] = -1;
-   }
-   else
-   {
-      showeyedata->SetBranchAddress("eyeid", &eyeid);
-
-      for(int i = 0; i < showeyedata->GetEntries(); i++)
-      {
-         showeyedata->GetEntry(i);
-	 stemp = IntToStr(eyeid);	// Not working without this (even if function is void)!
-
-         if( ((eyeid == 1) && (eyevalid[0] == 1)) || ((eyeid == 2) && (eyevalid[1] == 1)) || ((eyeid == 3) && (eyevalid[2] == 1)) || ((eyeid == 4) && (eyevalid[3] == 1)) )
-	 {
-            acteyes.push_back(eyeid);
-	    cout << "Valid eye with ID " << eyeid << endl;
-	 }
-	 else
-	 {
-	    eyevalid[i] = -1;
-            cout << "Eye with ID " << eyeid << " does not have a longitudinal profile." << endl;
-	 }
-      }
-   }
-
-   cout << "Bool set: " << eyevalid[0] << ", " << eyevalid[1] << ", " << eyevalid[2] << ", " << eyevalid[3] << endl;
-
-   return stemp;
-}
-
-// Gives a list of all active eyes
-string AnalyseTool::GetActiveEyeList()
-{
-   cout << "# Entering function AnalyseTool::GetActiveEyeList()..." << endl;
-   int eyecnt = 0;
-   string stemp;
-
-   for(int i = 0; i < ALLEYES; i++)
-   {
-      if(eyevalid[i] == 1)
-      {
-         if(eyecnt == 0)
-            stemp = IntToStr(i+1);
-	 else
-	    stemp = stemp + ", " + IntToStr(i+1);
-         
-         eyecnt++;
-      }
-   }
-
-   if(eyecnt == 0)
-      return "    No reconstructed FD eyes.";
-   else
-      return stemp;
-}
-// ------------------------------------------------------------------------------------------------------
-
-// Start of the actual analysis program -----------------------------------------------------------------
-//    infilenr = currently used input file number
-int AnalyseTool::RunDirective(int infilenr)
-{
-   cout << "# Entering function AnalyseTool::RunDirective()..." << endl;
-   string stemp;
-   string dirtemp[3];
-   int itemp[3] = {-1,-1,-1};
-   double dtemp;
-   int nrpoints;
-
-   // Stop analysis if selection of analysis was not correct
-   if(!plotdirective.find("-1"))
-      return -1;
-
-   nrdirs = sizeof(directivetype);
-
-   // Find the : in the plot directive and split the two sides into dirtemp[0] and dirtemp[1] (check both if they are valid options)
-   itemp[0] = plotdirective.find(':');
-   if(plotdirective.find(':') != string::npos)
-   {
-      dirtemp[0] = plotdirective.substr(0,itemp[0]);
-      itemp[1] = plotdirective.find(':', itemp[0]+1);
-      if( plotdirective.find(':', itemp[0]+1) != string::npos )
-      {
-         dirtemp[1] = plotdirective.substr(itemp[0]+1,itemp[1] - (itemp[0]+1));
-	 dirtemp[2] = plotdirective.substr(itemp[1]+1,plotdirective.length() - (itemp[1]+1));
-      }
-      else
-      {
-         dirtemp[1] = plotdirective.substr(itemp[0]+1,plotdirective.length() - (itemp[0]+1));
-	 dirtemp[2] = "empty";
-      }
-    
-      for(int i = 0; i < nrdirs; i++)
-      {
-         if(dirtemp[0].compare(directive[i]) == 0)
-            itemp[0] = i;
-         if(dirtemp[1].compare(directive[i]) == 0)
-            itemp[1] = i;
-         if(dirtemp[2].compare(directive[i]) == 0)
-            itemp[2] = i;
-      }
-   }
-   else
-   {
-      dirtemp[0] = plotdirective;
-      for(int i = 0; i < nrdirs; i++)
-         if(dirtemp[0].compare(directive[i]) == 0)
-            itemp[0] = i;
-   }
-
-   // Check to see if the selected directive is available for single and multiple file mode
-   nrdirs = 0;
-   // Single file mode
-   if(filesel == 0)
-   {
-      for(int i = 0; i < 3; i++)
-      {
-         if(itemp[i] != -1)
-            nrdirs++;
-         if( directiveavail[itemp[i]] == 1 )
-	    itemp[i] = -1;
-      }
-
-      if((itemp[1] == -1) && (itemp[2] == -1))
-      {
-         if( directive[itemp[0]] == "xmax" )
-         {
-            cout << " Enter maximal Xmax error to be used (set to 0, to select all showers): ";
-            cin >> xmaxlimit;
-            cout << "------------------------------------------------------------------------------------" << endl;
-            cout << " Use vertical (0) or slant depth (1): ";
-            cin >> slantset;
-            cout << "------------------------------------------------------------------------------------" << endl;
-         }
-      }
-      else if((itemp[1] != -1) && (itemp[2] == -1))
-      {
-         if( (directive[itemp[0]] == "xmax") || (directive[itemp[1]] == "xmax") )
-         {
-            cout << " Enter maximal Xmax error to be used (set to 0, to select all showers): ";
-            cin >> xmaxlimit;
-            cout << "------------------------------------------------------------------------------------" << endl;
-            cout << " Use vertical (0) or slant depth (1): ";
-            cin >> slantset;
-            cout << "------------------------------------------------------------------------------------" << endl;
-         }
-      }
-   }
-   // Multiple file mode
-   else if(filesel == 1)
-   {
-      for(int i = 0; i < 3; i++)
-      {
-         if(itemp[i] != -1)
-            nrdirs++;
-         if( directiveavail[itemp[i]] == 0 )
-	    itemp[i] = -1;
-      }
-
-      // Only valid for the multiple file mode
-      if((itemp[1] == -1) && (itemp[2] == -1) && (infilenr == 0))
-      {
-         if( (directiveaffil[itemp[0]] == "showeyedata") || (directiveaffil[itemp[0]] == "eyelong") )
-         {
-            cout << " Enter maximal Xmax error to be used (set to 0, to select all showers): ";
-            cin >> xmaxlimit;
-            cout << "------------------------------------------------------------------------------------" << endl;
-            cout << " Use vertical (0) or slant depth (1): ";
-            cin >> slantset;
-            cout << "------------------------------------------------------------------------------------" << endl;
-         }
-         if( directive[itemp[0]] == "shfoot" )
-         {
-            cout << " Enter fraction of particles in longitudinal profile that still count for shfoot: ";
-            cin >> shfootlimit;
-            cout << "------------------------------------------------------------------------------------" << endl;
-         }
-      }
-      else if((itemp[1] != -1) && (itemp[2] == -1) && (infilenr == 0))
-      {
-         if( (directiveaffil[itemp[0]] == "showeyedata") || (directiveaffil[itemp[0]] == "eyelong") || (directiveaffil[itemp[1]] == "showeyedata") || (directiveaffil[itemp[1]] == "eyelong") )
-         {
-            cout << " Enter maximal Xmax error to be used (set to 0, to select all showers): ";
-            cin >> xmaxlimit;
-            cout << "------------------------------------------------------------------------------------" << endl;
-            cout << " Use vertical (0) or slant depth (1): ";
-            cin >> slantset;
-            cout << "------------------------------------------------------------------------------------" << endl;
-         }
-         if( (directive[itemp[0]] == "shfoot") || (directive[itemp[1]] == "shfoot") )
-         {
-            cout << " Enter fraction of particles in longitudinal profile that still count for shfoot: ";
-            cin >> shfootlimit;
-            cout << "------------------------------------------------------------------------------------" << endl;
-         }
-      }
-
-      // Run directive for the multiple file mode
-      PrepareDirective(dirtemp, itemp, infilenr);
-
-      return -1;
-   }
-
-   // Run directive for the single file mode
-   // Plotting observables
-   if(analysistype == 1)
-   {
-      // Make 1D histogram
-      if(plotdirective.find(':') == string::npos)
-      {
-         if( itemp[0] == -1 )
-	    return -1;
-	 else
-	 {
-            // 1D histogram directly from observable
-	    stemp = dirtemp[0] + ">>" + "obs";
-
-	    if(directiveaffil[itemp[0]] == "showtankdata")
-               showtankdata->Draw(stemp.c_str());
-	    else if(directiveaffil[itemp[0]] == "showeyedata")
-               showeyedata->Draw(stemp.c_str());	// TODO: Still have to make a high limit for Xmax
-
-	    stemp = string(BASEDIR) + "/results/" + dirtemp[0] + ".pdf";
-	 }
-
-         histf = (TH1F*)gDirectory->Get("obs");
-	 dirtemp[0] = ";" + directivedesc[itemp[0]] + ";Number of events";
-	 histf->SetTitle(dirtemp[0].c_str());
-         histf->Draw();
-
-         c1->SaveAs(stemp.c_str());
-
-	 delete histf;
-         
-         return 0;
-      }
-      // Make 2D histogram
-      else
-      {
-         if( (itemp[0] == -1) || (itemp[1] == -1) )
-	    return -1;
-	 else
-	 {
-            // Compare SD observables between eachother
-	    if( (directiveaffil[itemp[0]] == "showtankdata") && (directiveaffil[itemp[1]] == "showtankdata") )
-	    {
-	       stemp = plotdirective + ">>" + "obs";
-               showtankdata->Draw(stemp.c_str());
-
-	       stemp = string(BASEDIR) + "/results/" + directive[itemp[0]] + "_" + directive[itemp[1]]+ ".pdf";
-	    }
-            // Compare FD observables between eachother
-	    else if( (directiveaffil[itemp[0]] == "showeyedata") && (directiveaffil[itemp[1]] == "showeyedata") )
-	    {
-	       stemp = plotdirective + ">>" + "obs";
-               showeyedata->Draw(stemp.c_str());
-
-	       stemp = string(BASEDIR) + "/results/" + directive[itemp[0]] + "_" + directive[itemp[1]]+ ".pdf";
-	    }
-	    else
-	    {
-	       cout << "Can only compare observables between tanks or between eyes, not mixed ones." << endl;
-	       return -1;
-	    }
-
-            gr = (TGraph*)gDirectory->Get("obs");
-            gr->SetMarkerStyle(20);
-            gr->SetMarkerSize(0.7);
-	    dirtemp[0] = ";" + directivedesc[itemp[1]] + ";" + directivedesc[itemp[0]];
-	    gr->SetTitle(dirtemp[0].c_str());
-            gr->Draw();
-            
-            c1->SaveAs(stemp.c_str());
-            
-            delete gr;
-	 }
-         
-         return 0;
-      }
-   }
-   // Plotting profiles
-   else if(analysistype == 2)
-   {
-      double *x, *xerr, *y, *yerr;
-      // We are plotting the LDF profile
-      if( directive[itemp[0]] == "ldf" )
-      {
-         return PlotLDF(dirtemp, itemp);
-      }
-      // We are plotting a specific tank/eye profile
-      else if( (itemp[0] != -1) && (itemp[1] == -1) )
-      {
-         // Plotting the VEM signal trace
-         if(directive[itemp[0]] == "vemsig")
-	 {
-	    return PlotVEM(dirtemp, itemp);
-	 }
-         // Plotting the longitudinal profile
-         else if(directive[itemp[0]] == "longprof")
-	 {
-	    return PlotLongProf(dirtemp, itemp);
-	 }
-	 else
-            return -1;
-      }
-      // We are plotting tank/eye profiles for all tanks/eyes
-      else if( (itemp[0] != -1) && (itemp[1] != -1) )
-      {
-         nrpoints = 0;
-         if(directive[itemp[1]] == "all")
-	 {
-            // Plotting the VEM signal trace
-            if(directive[itemp[0]] == "vemsig")
-            {
-	       for(int i = 0; i < nracttanks; i++)
-	       {
-	          dirtemp[1] = IntToStr(acttanks[i]);
-	          nrpoints += PlotVEM(dirtemp, itemp);
-	       }
-	       return nrpoints;
-            }
-            // Plotting the longitudinal profile
-            else if(directive[itemp[0]] == "longprof")
-            {
-	       for(int i = 0; i < ALLEYES; i++)
-	       {
-	          if(eyevalid[i] == 1)
-		  {
-	             dirtemp[1] = IntToStr(i+1);
-	             nrpoints += PlotLongProf(dirtemp, itemp);
-		  }
-           	  else
-                     cout << "No longitudinal profile to plot for eye with ID " << i+1 << endl;
-	       }
-               return nrpoints;
-            }
-            else
-               return -1;
-	 }
-	 else
-	    return -1;
-      }
-      else
+         delete mvatool;
          return -1;
-   }
-   // More to come
-   else if(analysistype == 3)
-   {
-      cout << "Plotting more to come" << endl;
-      return 0;
-   }
-   else
-      return 1;
-}
-// ------------------------------------------------------------------------------------------------------
+      }*/
 
-// Profile plotting instructions ------------------------------------------------------------------------
-//    PlotLDF: *sepdir = directive types (verbal, i.e. ldf), *seldir = directive types (int)
-//    PlotVEM: *sepdir = directive types (verbal, i.e. vemsig:5423), *seldir = directive types (int)
-//    PlotLongProf: *sepdir = directive types (verbal, i.e. longprof:3), *seldir = directive types (int)
-int AnalyseTool::PlotLDF(string *sepdir, int *seldir)
-{
-   cout << "# Entering function AnalyseTool::PlotLDF()..." << endl;
-   double *x, *xerr, *y, *yerr;
-   string *stemp;
-   int *nrpoints;
+      mvatool->outname = string(BASEDIR) + "/" + stemp;
+      if(writeAnalysis == 0)
+      {
+         mvatool->outfile = TFile::Open((mvatool->outname).c_str(),"RECREATE");
 
-   x = new double;
-   xerr = new double;
-   y = new double;
-   yerr = new double;
-
-   nrpoints = new int;
-   stemp = new string;
-
-   showsrecdata->SetBranchAddress("ldfpoints", nrpoints);
-   showsrecdata->GetEntry(0);
-
-   grErr = new TGraphErrors(*nrpoints);
-
-   for(int i = 0; i < *nrpoints; i++)
-   {
-      srecldfdata->SetBranchAddress("x", x);
-      srecldfdata->GetEntry(i);
-      srecldfdata->SetBranchAddress("xerr", xerr);
-      srecldfdata->GetEntry(i);
-      srecldfdata->SetBranchAddress("y", y);
-      srecldfdata->GetEntry(i);
-      srecldfdata->SetBranchAddress("yerr", yerr);
-      srecldfdata->GetEntry(i);
-
-      // If the errors are 0, they still need to be applied
-      if(*xerr == 0.)
-         *xerr = 1.e-7;
-
-      grErr->SetPoint(i,*x,*y);
-      grErr->SetPointError(i,*xerr,*yerr);
-   }
-
-   c1->SetLogy(1);
-   *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_profile.pdf";
-   grErr->SetMarkerStyle(20);
-   grErr->SetMarkerSize(0.7);
-   sepdir[0] = directivedesc[seldir[0]] + ";Distance from axis (m);Signal (VEM)";
-   grErr->SetTitle(sepdir[0].c_str());
-   grErr->Draw();
+         // Prepare observable values for signal and background
+         Observables obssig, obsback;
+         TTree *back_tree;
+         back_tree = new TTree[mvatool->inname.size()];
+         for(int i = 0; i < mvatool->inname.size(); i++)
+            back_tree[i].SetNameTitle(("TreeB" + IntToStr(i+1)).c_str(), ("Background tree without events from file " + mvatool->inname[i]).c_str());
+//         back_tree = new TTree("TreeB", "Background tree with signal events subtracted from all events.");
+         mvatool->all_tree = new TTree("TreeA", "Background tree with all events, including signal events.");
       
-   c1->SaveAs((*stemp).c_str());
+         // Start rewriting (for all input files)
+         for(int i = 0; i < mvatool->inname.size(); i++)
+            mvatool->RewriteObservables(i, obssig, obsback, back_tree);
 
-   *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_profile.C";
-   c1->SaveAs((*stemp).c_str());
+//       mvatool->back_tree->Write();
+         mvatool->all_tree->Write();
+         for(int i = 0; i < mvatool->inname.size(); i++)
+            back_tree[i].Write();
 
-   delete grErr;
-   delete x;
-   delete xerr;
-   delete y;
-   delete yerr;
-   delete nrpoints;
-   delete stemp;
-
-   c1->SetLogy(0);
-
-   return 0;
-}
-
-int AnalyseTool::PlotVEM(string *sepdir, int *seldir)
-{
-   cout << "# Entering function AnalyseTool::PlotVEM()..." << endl;
-   double *x, *y;
-   double *dtemp;
-   int *nrpoints;
-   string *stemp;
-   struct { int sec; double nsec; } stime;
-   double *range;
-
-   nrpoints = new int;
-   dtemp = new double;
-   stemp = new string;
-   range = new double[3];
-
-   c1 = new TCanvas("c1","c1",1200,800);
-   c1->SetGrid();
-
-   GetTankTree(stoi(sepdir[1]));
-
-   *dtemp = 1.e+32;
-   for(int i = 0; i < nracttanks; i++)
-   {
-      showtankdata->SetBranchAddress("starttime", &stime);
-      showtankdata->GetEntry(i);
-
-      if(stime.nsec < *dtemp)
-         *dtemp = stime.nsec;
-
-      showtankdata->SetBranchAddress("stationid", &seldir[1]);
-      showtankdata->GetEntry(i);
-
-      if( seldir[1] == stoi(sepdir[1]) )
-      {
-         *nrpoints = i;
-	 range[0] = stime.nsec;
+         // Close all open files
+         mvatool->outfile->Close();
+         mvatool->fFile->Close();
       }
-   }
 
-   showtankdata->SetBranchAddress("endtime", &range[1]);
-   showtankdata->GetEntry(*nrpoints);
-   range[0] = range[0]-(*dtemp);
-   range[1] = range[1]-(*dtemp);
-//   cout << "The range is (start = " << range[0] << ", end = " << range[1] << "): " << (range[1] - range[0])*1.1 << endl;
+      // Start performing the MVA analysis - TODO: make this working correctly
+      TFile *ofile = TFile::Open("tmva_output.root","RECREATE");
+      // Factory usage:
+      // - user-defined job name, reappearing in names of weight files for training results ("TMVAClassification")
+      // - pointer to an output file (ofile)
+      // - options
+      // Factory has the following options:
+      // 	V = verbose
+      // 	Silent = batch mode
+      // 	Color = colored screen output
+      // 	DrawProgressBar = progress bar display during training and testing
+      // 	Transformations = the transformations to make (identity, decorrelation, PCA, uniform, gaussian, gaussian decorrelation)
+      // 	AnalysisType = setting the analysis type (Classification, Regression, Multiclass, Auto)
+      // Default values = !V:!Silent:Color:DrawProgressBar:Transformations=I;D;P;G,D:AnalysisType=Auto
+      TMVA::Factory *factory = new TMVA::Factory("TMVAClassification",ofile,"!V:!Silent:Color:DrawProgressBar:Transformations=I;D;P;G,D:AnalysisType=Classification");
 
-   x = new double;
-   y = new double;
+      // Add variables to be used (similar for spectators and targets):
+      // - name of the variable as defined in the input file
+      // - type of the variable (can be int = 'I' or float/double = 'F')
+      // Additionally, can also have a title and the units for the variable: factory->AddVariable("name","title","unit",'F');
+      string signalName = "default";
+      cout << "Observables to add in the multivariate analysis:" << endl
+           << "   xmax, x0, lambda, fdenergy, shfoot, ldf1000, shwsize, nrmu, curvature, risetime" << endl
+           << "   default (xmax,shfoot,ldf1000,nrmu,risetime)" << endl;
+      cout << "Select the observables to include in the MVA (comma separated): ";
+      cin >> signalName;
+      stringstream ss1(signalName);
+      ss1.imbue(locale(locale(), new tokens()));
+      istream_iterator<string> begin1(ss1);
+      istream_iterator<string> end1;
+      vector<string> observables(begin1, end1);
 
-   *nrpoints = curtankvemdata->GetEntries();
+      observables = AddVariables(factory, observables);
 
-   gr = new TGraph(*nrpoints);
+/*      factory->AddVariable("xmax", 'F');
+//      factory->AddVariable("x0", 'F');
+//      factory->AddVariable("lambda", 'F');
+//      factory->AddVariable("fdenergy", 'F');
+      factory->AddVariable("shfoot", 'F');
+      factory->AddVariable("ldf1000", 'F');
+//      factory->AddVariable("ldfbeta", 'F');
+      factory->AddVariable("nrmu", 'F');
+//      factory->AddVariable("curvature", 'F');
+      factory->AddVariable("risetime", 'F');*/
 
-   for(int i = 0; i < *nrpoints; i++)
-   {
-      curtankvemdata->SetBranchAddress("time", x);
-      curtankvemdata->GetEntry(i);
-      curtankvemdata->SetBranchAddress("vem", y);
-      curtankvemdata->GetEntry(i);
+      // Open up the input file and ask which signal tree we want to check
+      int whichAnalysis = -1;
+      signalName = "TreeS1";
 
-      gr->SetPoint(i,(*x - *dtemp),*y);
-   }
-
-   // Prepare export filename and marker style
-   *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_" + sepdir[1] + "_profile.pdf";
-   gr->SetMarkerStyle(20);
-   gr->SetMarkerSize(0.7);
-   // Set the range of the plot and title
-   range[2] = (range[1] - range[0])*0.2;
-   gr->GetXaxis()->SetRangeUser( range[0]-range[2], range[1]+range[2] );
-   sepdir[0] = directivedesc[seldir[0]] + " (ID = " + sepdir[1] + ")" + ";SD tank time (ns);Signal (VEM)";
-   gr->SetTitle(sepdir[0].c_str());
-   gr->Draw();
-
-   c1->SaveAs((*stemp).c_str());
-
-   *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_" + sepdir[1] + "_profile.C";
-   c1->SaveAs((*stemp).c_str());
-   
-   delete gr;
-   delete x;
-   delete y;
-   delete dtemp;
-   delete nrpoints;
-   delete stemp;
-   delete range;
-//   delete c1;
-
-   return 0;
-}
-
-int AnalyseTool::PlotLongProf(string *sepdir, int *seldir)
-{
-   cout << "# Entering function AnalyseTool::PlotLongProf()..." << endl;
-   double *x, *xerr, *y, *yerr;
-   string *stemp, *stemp2;
-   int *nrpoints;
-   double *cum, *cumerr;
-
-   x = new double;
-   xerr = new double;
-   y = new double;
-   yerr = new double;
-   cum = new double;
-   cumerr = new double;
-
-   nrpoints = new int;
-   stemp = new string;
-   stemp2 = new string;
-
-   c1 = new TCanvas("c1","c1",1200,800);
-   c1->SetGrid();
-
-   GetEyeTree(stoi(sepdir[1]));
-
-   *nrpoints = cureyelongdata->GetEntries();
-
-   grErr = new TGraphErrors(*nrpoints);
-
-   if(btemp)	// only valid if we want separate cumulative longitudinal distribution plots
-   {
-      grErrtemp = new TGraphErrors(*nrpoints);
-      *cum = 0;
-      if( xfoot.size() != 0 )
-         xfoot.erase(xfoot.begin(),xfoot.end());
-      if( yfoot.size() != 0 )
-         yfoot.erase(yfoot.begin(),yfoot.end());
-      if( yerrfoot.size() != 0 )
-         yerrfoot.erase(yerrfoot.begin(),yerrfoot.end());
-   }
-
-   for(int i = 0; i < *nrpoints; i++)
-   {
-      cureyelongdata->SetBranchAddress("x", x);
-      cureyelongdata->GetEntry(i);
-      cureyelongdata->SetBranchAddress("xerr", xerr);
-      cureyelongdata->GetEntry(i);
-      cureyelongdata->SetBranchAddress("y", y);
-      cureyelongdata->GetEntry(i);
-      cureyelongdata->SetBranchAddress("yerr", yerr);
-      cureyelongdata->GetEntry(i);
-
-      // If the errors are 0, they still need to be applied
-      if(*xerr == 0.)
-         *xerr = 1.e-7;
-
-      grErr->SetPoint(i,*x,*y);
-      grErr->SetPointError(i,*xerr,*yerr);
-
-      if(btemp)
+      TFile *ifile = TFile::Open(stemp.c_str());
+      if((ifile->GetListOfKeys()->Contains("TreeA")) || (ifile->GetListOfKeys()->Contains("TreeB1")))
       {
-         *cum += *y;
-         *cumerr += *yerr;
+         cout << endl << "There are " << ((ifile->GetNkeys()-1)/2) << " signal trees available:" << endl;
+         for(int i = 1; i <= ((ifile->GetNkeys())/2); i++)
+         {
+            signalName = "TreeS" + IntToStr(i);
+            cout << "- " << i << ": " << ifile->GetKey(signalName.c_str())->GetTitle() << endl;
+         }
+         cout << endl << "Select one to analyze (1-" << ((ifile->GetNkeys()-1)/2) << "): ";
+         cin >> whichAnalysis;
 
-	 xfoot.push_back(*x);
-	 yfoot.push_back(*cum);
-	 yerrfoot.push_back(*cumerr);
+         while( (whichAnalysis > ((ifile->GetNkeys())/2)) || (whichAnalysis < 1) )
+         {
+            cout << "Error: Wrong selection." << endl << "There are " << ((ifile->GetNkeys()-1)/2) << " signal trees available. Select one to analyze (1-" << ((ifile->GetNkeys()-1)/2) << "): ";
+            cin >> whichAnalysis;
+         }
 
-	 grErrtemp->SetPoint(i,*x,*cum);
-         grErrtemp->SetPointError(i,*xerr,*cumerr);
-
-//	 cout << "Point " << i << ": " << xfoot[i] << "\t" << yfoot[i] << " (" << yerrfoot[i] << ")" << endl;
+         signalName = "TreeS" + IntToStr(whichAnalysis);
       }
-   }
 
-   // Setting output names for plots
-   if(stoi(sepdir[1]) == 1)
-   {
-      *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_LL_profile.pdf";
-      *stemp2 = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_LL_profile.C";
-   }
-   else if(stoi(sepdir[1]) == 2)
-   {
-      *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_LM_profile.pdf";
-      *stemp2 = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_LM_profile.C";
-   }
-   else if(stoi(sepdir[1]) == 3)
-   {
-      *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_LA_profile.pdf";
-      *stemp2 = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_LA_profile.C";
-   }
-   else if(stoi(sepdir[1]) == 4)
-   {
-      *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_CO_profile.pdf";
-      *stemp2 = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_CO_profile.C";
-   }
-   else
-   {
-      *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_" + sepdir[1] + "_profile.pdf";
-      *stemp2 = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_" + sepdir[1] + "_profile.C";
-   }
+      // Getting signal and background trees for training and testing (can supply multiple trees)
+      TTree *signal = (TTree*)ifile->Get(signalName.c_str());
+      cout << signalName << " selected as signal tree." << endl;
+      TTree *background;
 
-   grErr->SetMarkerStyle(20);
-   grErr->SetMarkerSize(0.7);
-   sepdir[0] = directivedesc[seldir[0]] + ";Slant depth (g/cm^{2});Number of charged particles";
-   grErr->SetTitle(sepdir[0].c_str());
-   grErr->Draw();
+      cout << endl << "Take all events as background (0) or only inverse events (1)? ";
+      cin >> itemp;
+      while( (itemp != 0) && (itemp != 1) )
+      {
+         cout << "Error: Wrong selection." << endl << "Take all events as background (0) or only inverse events (1)? ";
+         cin >> itemp;
+      }
+
+      if(itemp == 0)
+      {
+         background = (TTree*)ifile->Get("TreeA");
+         cout << "TreeA selected as background tree." << endl;
+      }
+      else if(itemp == 1)
+      {
+         signalName = "TreeB" + IntToStr(whichAnalysis);
+         background = (TTree*)ifile->Get(signalName.c_str());
+         cout << signalName << " selected as background tree." << endl;
+      }
+
+      // Add all the trees to the factory with overall weights for the complete sample
+      factory->AddSignalTree(signal, 1.0);
+      factory->AddBackgroundTree(background, 1.0);
+
+      // Preparing and training from the trees:
+      // - preselection cuts make cuts on input variables, before even starting the MVA
+      // - options
+      // These are the possible options:
+      // 	nTrain_Signal = number of training events of class Signal (0 takes all)
+      // 	nTrain_Background = number of training events of class Background (0 takes all)
+      // 	nTest_Signal = number of test events of class Signal (0 takes all)
+      // 	nTest_Background = number of test events of class Background (0 takes all)
+      // 	SplitMode = method of choosing training and testing events (Random, Alternate, Block)
+      //	NormMode = renormalisation of event-by-event weights for training (NumEvents: average weight of 1 per event for signal and background, EqualNumEvents: average weight of 1 per event for signal and sum of weights for background equal to sum of weights for signal, None)
+      //	V = verbose
+      //	MixMode = method of mixing events of different classes into one dataset (SameAsSplitMode, Random, Alternate, Block)
+      //	SplitSeed = seed for random event shuffling (default = 100)
+      //	VerboseLevel = level of verbose (Debug, Verbose, Info)
+      factory->PrepareTrainingAndTestTree("", "", "nTrain_Signal=0:nTrain_Background=0:SplitMode=Random:NormMode=NumEvents:!V");
+
+      // Choose the MVA methods
+      MethodList();
+
+      cin >> signalName;
+      stringstream ss2(signalName);
+      ss2.imbue(locale(locale(), new tokens()));
+      istream_iterator<string> begin2(ss2);
+      istream_iterator<string> end2;
+      vector<string> methods(begin2, end2);
+
+      // Booking MVA methods:
+      // - type of MVA method to be used (all defined in src/Types.h)
+      // - the unique name for the MVA method suplied by the user
+      // - options
+      // The possible options for each method are defined here: http://tmva.sourceforge.net/optionRef.html
+      // For example:
+      // 	H = print method-specific help message
+      // 	V = verbose
+      // 	NeuronType = neuron activation function type (default = sigmoid)
+      // 	VarTransform = list of variable transformations to do before training (D_Background,P_Signal,G,N_AllClasses -> N = Normalization for all classes)
+      // 	NCycles = number of training cycles
+      // 	HiddenLayers = hidden layer architecture (default = N,N-1)
+      // 	TestRate = test for overtraining at each #th epoch (default = 10)
+      // 	TrainingMethod = train with back propagation (BP), BFGS algorithm (BFGS) or generic algorithm (GA)
+      // 	UseRegulator = use regulator to avoid overtraining
+      methods = BookTheMethod(factory, methods);
+//    factory->BookMethod( TMVA::Types::kMLP, "MLPBNN", "H:!V:NeuronType=tanh:VarTransform=N:NCycles=60:HiddenLayers=N+5:TestRate=5:TrainingMethod=BFGS:UseRegulator" );
+      // Train the selected methods and save them to the weights folder
+      factory->TrainAllMethods();
+      // Test the selected methods by applying the trained data to the test data set -> outputs saved to TestTree output file and then to the output ROOT file
+      factory->TestAllMethods();
+      // Evaluation of methods printed to stdout
+      factory->EvaluateAllMethods();
+
+      ifile->Close();
+      delete factory;
+      ofile->Close();
+
+      // Open the GUI to check for best MVA
+      itemp = system("./tmvagui tmva_output.root");
+      cout << "Closing the GUI and continuing by applying the selected MVA to the data." << endl;
       
-   c1->SaveAs((*stemp).c_str());
-   c1->SaveAs((*stemp2).c_str());
-
-   // Plotting instructions for the cumulative distribution
-   if(btemp)
-   {
-      *nrpoints = 0;
-
-      for(int i = 0; i < yfoot.size(); i++)
+      // Perform classification application
+      string applymva;
+      // Select the method to use
+      if(methods.size() == 1)
+         applymva = methods[0];
+      else if(methods.size() > 1)
       {
-         if( (yfoot[i] >= shfootlimit*(yfoot[yfoot.size()-1])) && (*nrpoints == 0) )
-         {
-	    *nrpoints = 1;
+         cout << endl << "The following methods were trained and tested:" << endl;
+         for(int i = 0; i < methods.size(); i++)
+            cout << "   " << methods[i] << endl;
+         cout << "Select the method to be applied to the data (only one): " << endl;
+         cin >> applymva;
+      }
+     
+      // Open a reader and add variables (must be the same as for the training)
+      TMVA::Reader *reader = new TMVA::Reader("!Color:!Silent");
 
-	    // Find the x value of point with y value that is a fraction of the maximum, that lies on a line between two points
-	    // y = k*x + a
-	    //    k = (y2 - y1)/(x2 - x1)
-	    //    a = y2 - (y2 - y1)/(x2 - x1)*x2
-	    // x = ((x2 - x1)/(y2 - y1))*(y - y2) + x2
-	    *cum = (xfoot[i] - xfoot[i-1])/(yfoot[i] - yfoot[i-1]); // 1/k = (x2 - x1)/(y2 - y1)
-	    *cumerr = shfootlimit*(yfoot[yfoot.size()-1]) - yfoot[i]; // y - y2
-            *x = (*cum)*(*cumerr) + xfoot[i]; // x = (1/k)*(y - y2) + x2
+      float obsvars[observables.size()];
 
-//	    cout << *cum << "\t" << *cumerr << "\t" << *x << endl;
+      for(int i = 0; i < observables.size(); i++)
+      {
+         if(observables[i] == "xmax")
+            reader->AddVariable(observables[i], &obsvars[i]);
 
-            *cum = (xfoot[i] - xfoot[i-1])/(yfoot[i]+yerrfoot[i] - (yfoot[i-1]+yerrfoot[i-1])); // 1/kerr = (x2 - x1)/(y2err - y1err)
-	    *cumerr = (yfoot[i]+yerrfoot[i]) - (1/(*cum))*(xfoot[i]); // aerr = y2err - (y2err - y1err)/(x2 - x1)*x2
-	    *cum = (1/(*cum))*(*x) + (*cumerr); // yerr = kerr*x + aerr
-	    *yerr = (*cum) - (((yfoot[i] - yfoot[i-1])/(xfoot[i] - xfoot[i-1]))*(*x) + (yfoot[i] - ((yfoot[i] - yfoot[i-1])/(xfoot[i] - xfoot[i-1]))*(xfoot[i]))); // Dy = yerr - y
+         if(observables[i] == "x0")
+            reader->AddVariable(observables[i], &obsvars[i]);
 
-	    *y = ((yfoot[i] - yfoot[i-1])/(xfoot[i] - xfoot[i-1]))*(*x) + (yfoot[i] - ((yfoot[i] - yfoot[i-1])/(xfoot[i] - xfoot[i-1]))*(xfoot[i])); // y = k*x + a
+         if(observables[i] == "lambda")
+            reader->AddVariable(observables[i], &obsvars[i]);
 
-            for(int j = i; ; j++)
-	    {
-	       if( yfoot[j] >= (*y)+(*yerr) )
-	       {
-//	          cout << "Upper limit is = " << xfoot[j] << endl;
-		  *cumerr = xfoot[j];
-		  break;
-	       }
-	    }
-            for(int j = i; ; j--)
-	    {
-               if(j == 0)
-               {
-	          *xerr = xfoot[j];
-//	          cout << "Lower limit is = " << xfoot[j] << endl;
-     	          break;
-               }
+         if(observables[i] == "fdenergy")
+            reader->AddVariable(observables[i], &obsvars[i]);
 
-	       if( yfoot[j] <= (*y)-(*yerr) )
-	       {
-//	          cout << "Lower limit is = " << xfoot[j] << endl;
-		  *xerr = xfoot[j];
-		  break;
-	       }
-	    }
+         if(observables[i] == "shfoot")
+            reader->AddVariable(observables[i], &obsvars[i]);
 
-	    break;
-         }
+         if(observables[i] == "ldf1000")
+            reader->AddVariable(observables[i], &obsvars[i]);
+
+         if(observables[i] == "shwsize")
+            reader->AddVariable(observables[i], &obsvars[i]);
+
+         if(observables[i] == "nrmu")
+            reader->AddVariable(observables[i], &obsvars[i]);
+
+         if(observables[i] == "curvature")
+            reader->AddVariable(observables[i], &obsvars[i]);
+
+         if(observables[i] == "risetime")
+            reader->AddVariable(observables[i], &obsvars[i]);
       }
 
-      grErrtemp->SetTitle(";Slant depth (g/cm^{2});Cumulative longitudinal distribution");
-      grErrtemp->Draw("AL");
-      grErrtemp->SetLineColor(kGray+2);
+      // Book the MVA with the produced weights file
+      signalName = "weights/TMVAClassification_" + applymva + ".weights.xml";
+      string mvamethod = (string)(applymva + " method");
+      reader->BookMVA(mvamethod, signalName);
 
-//      cout << "Marker at = " << *x << ", " << *xerr << " | " << *y << ", " << *yerr << endl;
-//      cout << "Box at = " << *xerr << ", " << (*y)+(*yerr) << " | " << *cumerr << ", " << (*y)-(*yerr) << endl;
+// GKM
+FILE *fpsig = fopen("root_mva/plots/gkm_simple_signal.txt","w");		// signal + wrong back after MVA cut
+FILE *fpback = fopen("root_mva/plots/gkm_simple_back.txt","w");			// back + wrong signal after MVA cut
+FILE *fpsigstart = fopen("root_mva/plots/gkm_simple_signal_start.txt","w");	// signal before MVA cut
+FILE *fpbackstart = fopen("root_mva/plots/gkm_simple_back_start.txt","w");	// back before MVA cut
+FILE *fpall = fopen("root_mva/plots/gkm_simple_all.txt","w");			// signal + back
+int backval = 0, sigval = 0;
+// GKM
 
-      // Draw point and a red box do represent the shower foot limiting value and its error
-      TBox *b1 = new TBox(*xerr, (*y)+(*yerr), *cumerr, (*y)-(*yerr));
-      b1->SetLineColor(kRed);
-      b1->SetFillColorAlpha(kRed, 0.3);
-      b1->Draw();
+      // Open the input file and prepare the TTree
+      stemp = "tmva.root";
+      ifile = TFile::Open(stemp.c_str());
 
-      TMarker *m1 = new TMarker(*x,*y,20);
-      m1->SetMarkerColor(kRed);
-      m1->SetMarkerSize(0.8);
-      m1->Draw();
+      signalName = "TreeS" + IntToStr(whichAnalysis);
 
-      if(stoi(sepdir[1]) == 1)
-         *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_LL_cumulative_profile.pdf";
-      else if(stoi(sepdir[1]) == 2)
-         *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_LM_cumulative_profile.pdf";
-      else if(stoi(sepdir[1]) == 3)
-         *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_LA_cumulative_profile.pdf";
-      else if(stoi(sepdir[1]) == 4)
-         *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_CO_cumulative_profile.pdf";
-      else
-         *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_" + sepdir[1] + "_cumulative_profile.pdf";
-      c1->SaveAs((*stemp).c_str());
+      TTree *signalapp = (TTree*)ifile->Get(signalName.c_str());
 
-      delete grErrtemp;
-   }
+      for(int i = 0; i < observables.size(); i++)
+         signalapp->SetBranchAddress((observables[i]).c_str(), &obsvars[i]);
 
-   delete grErr;
-   delete x;
-   delete xerr;
-   delete y;
-   delete yerr;
-   delete cum;
-   delete cumerr;
-   delete nrpoints;
-   delete stemp;
-   delete stemp2;
-//   delete c1;
+      double cutmva;
+      cout << "Select the cut to be performed on the MVA variable: ";
+      cin >> cutmva;
 
-   return 0;
-}
-
-// ------------------------------------------------------------------------------------------------------
-
-// Run directive for the multiple file mode -------------------------------------------------------------
-int AnalyseTool::PrepareDirective(string *sepdir, int *seldir, int infilenr)
-{
-   cout << "# Entering function AnalyseTool::PrepareDirective()..." << endl;
-   double *x, *xerr, *y, *yerr;
-   double *derr;
-   string *stemp;
-   int *itemp;
-   double *dtemp;
-   int *nrpoints;
-   double *cordist;
-
-   x = new double;
-   xerr = new double;
-   y = new double;
-   yerr = new double;
-
-   nrpoints = new int;
-   stemp = new string;
-   itemp = new int;
-   dtemp = new double;
-   derr = new double[2];
-   cordist = new double;
-
-   struct { double val, err; } etemp;
-   struct { int sec; double nsec; } stime;
-
-   if(infilenr == 0)
-   {
-      *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_multi" +  + ".dat";
-      outdata.open((*stemp).c_str(), ofstream::trunc | ofstream::out);
-   }
-
-   // Integer values of the selected directives
-   cout << "Seldir: " << seldir[0] << ", " << seldir[1] << ", " << seldir[2] << ". (" << nrdirs << ")" << endl;
-
-   if( xmaxerr.size() != 0 )
-      xmaxerr.erase(xmaxerr.begin(), xmaxerr.end());
-
-   // 1D histogram
-   if( (seldir[0] != -1) && (seldir[1] == -1) && (seldir[2] == -1) && (nrdirs == 1) )
-   {
-      // Getting separate tank data (totalvem, distance, muoncount)
-      if( directiveaffil[seldir[0]] == "showtankdata" )
+      for(int ievt=0; ievt < signalapp->GetEntries(); ievt++)
       {
-	 *y = 0;
-	 *itemp = 0;
+         signalapp->GetEntry(ievt);
 
-         for(int i = 0; i < nracttanks; i++)
-         {
-            GetTankTree(acttanks[i]);
-            cout << "Active tank: " << acttanks[i] << endl;
-
-	    GetData(sepdir, seldir, "Xaxis", y, yerr, itemp, i);
-         }
-
-         if(nracttanks > 0)
+         for(int i = 0; i < observables.size(); i++)
 	 {
-            *dtemp = *y/(double)*itemp;
-
-	    // Write out to data file for additional analysis (histogram bin widths)
-	    outdata << *dtemp << endl;
-
-            // Set ranges
-            if( *dtemp < xrange[0] )
-	       xrange[0] = *dtemp;
-            if( *dtemp > xrange[1] )
-	       xrange[1] = *dtemp;
-
-            cout << "The value to plot " << *dtemp << endl;
-            histf->Fill(*dtemp);
-	 }
-
-	 if( infilenr+1 == tarnames.size() )
-	 {
-            histf->GetXaxis()->SetRangeUser(xrange[0]-0.1*(xrange[1]-xrange[0]),xrange[1]+0.1*(xrange[1]-xrange[0]));
-	    *stemp = ";" + directivedesc[seldir[0]] + ";Number of events";
-  	    histf->SetTitle((*stemp).c_str());
-	    histf->Draw("");
-
-	    *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_multi" +  + ".pdf";
-            c1->SaveAs((*stemp).c_str());
-
-	    *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_multi" + ".C";
-            c1->SaveAs((*stemp).c_str());
-	 }
-      }
-      // Getting separate eye data (energy, emenergy, xmax)
-      if( directiveaffil[seldir[0]] == "showeyedata" )
-      {
-	 *y = 0;
-         if(directive[seldir[0]] == "xmaxqual")
-	    *yerr = 1.e+40;
-	 else
-	    *yerr = 0;
-	 *itemp = 0;
-	 eyecnt = 0;
-	 aboveerr = 0;
-
-         for(int i = 0; i < ALLEYES; i++)
-         {
-	    if(eyevalid[i] != 0)
-	    {
-	       if(eyevalid[i] == 1)
-	       {
-	          GetEyeTree(i+1);
-                  cout << "Active eye: " << i+1 << endl;
-
-	          GetData(sepdir, seldir, "Xaxis", y, yerr, itemp, eyecnt);
-	       }
-	       eyecnt++;
-	    }
-	    else
-	       cout << "No FD data to plot for eye ID " << i+1 << endl;
-         }
-
-	 *itemp = *itemp + aboveerr;
-	 cout << "Number of surviving showers = " << *itemp << endl;
-
-         if( (nracteyes > 0) && (*itemp > 0) )
-	 {
-            if(directive[seldir[0]] == "xmaxqual")
-	       *dtemp = *y;
-	    else
-               *dtemp = *y/(double)*itemp;
-
-	    // Write out to data file for additional analysis (histogram bin widths)
-	    outdata << *dtemp << endl;
-
-            // Set ranges
-            if( *dtemp < xrange[0] )
-	       xrange[0] = *dtemp;
-            if( *dtemp > xrange[1] )
-	       xrange[1] = *dtemp;
-
-            cout << "The value to plot " << *dtemp << endl;
-            histf->Fill(*dtemp);
-	 }
-
-	 if( infilenr+1 == tarnames.size() )
-	 {
-            histf->GetXaxis()->SetRangeUser(xrange[0]-0.1*(xrange[1]-xrange[0]),xrange[1]+0.1*(xrange[1]-xrange[0]));
-	    *stemp = ";" + directivedesc[seldir[0]] + ";Number of events";
-  	    histf->SetTitle((*stemp).c_str());
-	    histf->Draw("");
-
-	    *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_multi" +  + ".pdf";
-            c1->SaveAs((*stemp).c_str());
-
-	    *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_multi" + ".C";
-            c1->SaveAs((*stemp).c_str());
-	 }
-      }
-      // Getting shower foot information (shfoot)
-      if( directiveaffil[seldir[0]] == "eyelong" )
-      {
-	 *y = 0;
-	 derr[0] = 0; derr[1] = 0;
-	 *itemp = 0;
-	 eyecnt = 0;
-	 aboveerr = 0;
-
-         for(int i = 0; i < ALLEYES; i++)
-         {
-	    if(eyevalid[i] != 0)
-	    {
-	       if(eyevalid[i] == 1)
-	       {
-	          GetEyeTree(i+1);
-                  cout << "Active eye: " << i+1 << endl;
-
-	          GetData(sepdir, seldir, "Xaxis", y, derr, itemp, eyecnt);
-	       }
-	       eyecnt++;
-	    }
-	    else
-	       cout << "No FD data to plot for eye ID " << i+1 << endl;
-         }
-
-	 *itemp = *itemp + aboveerr;
-	 cout << "Number of surviving showers = " << *itemp << endl;
-
-         if( (nracteyes > 0) && (*itemp > 0) )
-	 {
-            *dtemp = *y/(double)*itemp;
-
-	    // Write out to data file for additional analysis (histogram bin widths)
-	    outdata << *dtemp << endl;
-
-            // Set ranges
-            if( *dtemp < xrange[0] )
-	       xrange[0] = *dtemp;
-            if( *dtemp > xrange[1] )
-	       xrange[1] = *dtemp;
-
-            cout << "The value to plot " << *dtemp << endl;
-            histf->Fill(*dtemp);
-	 }
-
-	 if( infilenr+1 == tarnames.size() )
-	 {
-            histf->GetXaxis()->SetRangeUser(xrange[0]-0.1*(xrange[1]-xrange[0]),xrange[1]+0.1*(xrange[1]-xrange[0]));
-            *stemp = ";Depth of " + IntToStr((int)(shfootlimit*100)) + directivedesc[seldir[0]] + ";Number of events";
-  	    histf->SetTitle((*stemp).c_str());
-	    histf->Draw("");
-
-	    *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_multi" +  + ".pdf";
-            c1->SaveAs((*stemp).c_str());
-
-	    *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_multi" + ".C";
-            c1->SaveAs((*stemp).c_str());
-	 }
-      }
-      // Getting SD reconstructed data (actstation, energy, S1000, curvature)
-      if( directiveaffil[seldir[0]] == "showsrecdata" )
-      {
-	 *y = 0;
-	 *itemp = 0;
-
-	 GetData(sepdir, seldir, "Xaxis", y, yerr, itemp, 0);
-
-         // Set ranges
-         if( *y < xrange[0] )
-	    xrange[0] = *y;
-         if( *y > xrange[1] )
-	    xrange[1] = *y;
-
-	 // Write out to data file for additional analysis (histogram bin widths)
-	 outdata << *y << endl;
-
-         cout << "The value to plot " << *y << endl;
-         histf->Fill(*y);
-
-	 if( infilenr+1 == tarnames.size() )
-	 {
-            histf->GetXaxis()->SetRangeUser(xrange[0]-0.1*(xrange[1]-xrange[0]),xrange[1]+0.1*(xrange[1]-xrange[0]));
-	    *stemp = ";" + directivedesc[seldir[0]] + ";Number of events";
-  	    histf->SetTitle((*stemp).c_str());
-	    histf->Draw("");
-
-	    *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_multi" +  + ".pdf";
-            c1->SaveAs((*stemp).c_str());
-
-	    *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_multi" + ".C";
-            c1->SaveAs((*stemp).c_str());
-	 }
-      }
-      // Getting FD reconstructed data (acteyes)
-      if( directiveaffil[seldir[0]] == "showfrecdata" )
-      {
-	 *y = 0;
-	 *itemp = 0;
-
-	 GetData(sepdir, seldir, "Xaxis", y, yerr, itemp, 0);
-
-         // Set ranges
-         if( *y < xrange[0] )
-	    xrange[0] = *y;
-         if( *y > xrange[1] )
-	    xrange[1] = *y;
-
-	 // Write out to data file for additional analysis (histogram bin widths)
-	 outdata << *y << endl;
-
-         cout << "The value to plot " << *y << endl;
-         histf->Fill(*y);
-
-	 if( infilenr+1 == tarnames.size() )
-	 {
-            histf->GetXaxis()->SetRangeUser(xrange[0]-0.1*(xrange[1]-xrange[0]),xrange[1]+0.1*(xrange[1]-xrange[0]));
-	    *stemp = ";" + directivedesc[seldir[0]] + ";Number of events";
-  	    histf->SetTitle((*stemp).c_str());
-	    histf->Draw("");
-
-	    *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_multi" +  + ".pdf";
-            c1->SaveAs((*stemp).c_str());
-
-	    *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_multi" + ".C";
-            c1->SaveAs((*stemp).c_str());
-	 }
-      }
-      // Getting separate tank calculation (risetime)
-      if( directiveaffil[seldir[0]] == "tankvem" )	// TODO: Early and late risetimes (Slightly working)
-      {
-	 *itemp = 0;
-	 *yerr = 0;
-	 *cordist = 1.e+40;
-
-         if( (directive[seldir[0]] == "risetimeearly") || (directive[seldir[0]] == "risetimelate") )
-	 {
-            for(int i = 0; i < nracttanks; i++)
-            {
-               showtankdata->SetBranchAddress("distance", &etemp);
-               showtankdata->GetEntry(i);
-
-	       if(etemp.val < *cordist)
-	       {
-	          *cordist = etemp.val;
-		  *nrpoints = i;
-	       }
-
-	       cout << "Distance from core = " << etemp.val << endl;
-	    }
-
-            showtankdata->SetBranchAddress("starttime", &stime);
-            showtankdata->GetEntry(*nrpoints);
-
-//	    cout << "Core tank " << *nrpoints << " at distance " << *cordist << " has a timestamp of " << stime.nsec << endl;
-	    *cordist = stime.nsec;
-	 }
-
-         for(int i = 0; i < nracttanks; i++)
-         {
-            if( xvalue.size() != 0 )
-               xvalue.erase(xvalue.begin(),xvalue.end());
-            if( yvalue.size() != 0 )
-	       yvalue.erase(yvalue.begin(),yvalue.end());
-
-            showtankdata->SetBranchAddress("starttime", &stime);
-            showtankdata->GetEntry(i);
-
-            GetTankTree(acttanks[i]);
-            cout << "Active tank: " << acttanks[i] << endl;
-
-            if( directive[seldir[0]] == "risetimeearly" )
-	    {
-	       if(stime.nsec < *cordist)
- 	          GetRisetime(i, stime.nsec, seldir, infilenr, itemp, yerr);
-	       else if(stime.nsec == *cordist)
-	          cout << "Tank " << i << " not used for early risetime calculations (tank closest to core)." << endl;
-	       else
-	          cout << setprecision(9) << "Tank " << i << " not used for early risetime calculations (" << stime.nsec << " >= " << *cordist << ")." << endl;
-	    }
-            else if( directive[seldir[0]] == "risetimelate" )
-	    {
-	       if(stime.nsec > *cordist)
-	          GetRisetime(i, stime.nsec, seldir, infilenr, itemp, yerr);
-	       else if(stime.nsec == *cordist)
-	          cout << "Tank " << i << " not used for early risetime calculations (tank closest to core)." << endl;
-	       else
-	          cout << setprecision(9) << "Tank " << i << " not used for late risetime calculations (" << stime.nsec << " <= " << *cordist << ")." << endl;
-	    }
-	    else
-	       GetRisetime(i, stime.nsec, seldir, infilenr, itemp, yerr);
-	 }
-
-         if( (nracttanks > 0) && (*itemp > 0) )
-	 {
-            *dtemp = *yerr/(double)*itemp;
-
-	    // Write out to data file for additional analysis (histogram bin widths)
-	    outdata << *dtemp << endl;
-
-            // Set ranges
-            if( *dtemp < xrange[0] )
-	       xrange[0] = *dtemp;
-            if( *dtemp > xrange[1] )
-	       xrange[1] = *dtemp;
-
-            cout << "The value to plot " << *dtemp << endl;
-            histf->Fill(*dtemp);
-	 }
-
-	 if( infilenr+1 == tarnames.size() )
-	 {
-            histf->GetXaxis()->SetRangeUser(xrange[0]-0.1*(xrange[1]-xrange[0]),xrange[1]+0.1*(xrange[1]-xrange[0]));
-	    *stemp = ";" + directivedesc[seldir[0]] + ";Number of events";
-  	    histf->SetTitle((*stemp).c_str());
-	    histf->Draw("");
-
-	    *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_multi" +  + ".pdf";
-            c1->SaveAs((*stemp).c_str());
-
-	    *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_multi" + ".C";
-            c1->SaveAs((*stemp).c_str());
-	 }
-      }
-   }
-   // Scatter plot
-   else if( (seldir[0] != -1) && (seldir[1] != -1) && (seldir[2] == -1) && (nrdirs == 2) )
-   {
-      // Go through both directives (for X and Y axis)
-//------------------------------------------------------------------------------------------
-      for(int k = 0; k < nrdirs; k++)
-      {
-         // Getting separate tank data (totalvem, distance, muoncount)
-         if( directiveaffil[seldir[k]] == "showtankdata" ) // probably still not working correctly
-         {
-	    if(k == 0) *x = 0;
-            else *y = 0;
-            *itemp = 0;
-
-            for(int i = 0; i < nracttanks; i++)
-            {
-               GetTankTree(acttanks[i]);
-               cout << "Active tank: " << acttanks[i] << endl;
-
-               if(k == 0)
-                  GetData(sepdir, seldir, "Xaxis", x, xerr, itemp, i);
-	       else
-                  GetData(sepdir, seldir, "Yaxis", y, yerr, itemp, i);
-            }
-
-            if(nracttanks > 0)
-            {
-	       if(k == 0)
-	       {
-                  *x = *x/(double)*itemp;
-                  *xerr = *xerr/(double)*itemp;
-	       }
-	       else
-	       {
-                  *y = *y/(double)*itemp;
-                  *yerr = *yerr/(double)*itemp;
-	       }
-            }
-         }
-         // Getting separate eye data (energy, emenergy, xmax)
-         if( directiveaffil[seldir[k]] == "showeyedata" )
-         {
-	    if(k == 0) *x = 0;
-            else *y = 0;
-	    if(k == 0) *xerr = 0;
-            else *yerr = 0;
-            *itemp = 0;
-            eyecnt = 0;
-            aboveerr = 0;
-
-            for(int i = 0; i < ALLEYES; i++)
-            {
-               if(eyevalid[i] != 0)
-               {
-                  if(eyevalid[i] == 1)
-                  {
-                     GetEyeTree(i+1);
-                     cout << "Active eye: " << i+1 << endl;
-
-                     if(k == 0)
-                        GetData(sepdir, seldir, "Xaxis", x, xerr, itemp, eyecnt);
-	             else
-                        GetData(sepdir, seldir, "Yaxis", y, yerr, itemp, eyecnt);
-                  }
-                  eyecnt++;
-               }
-               else
-                  cout << "No FD data to plot for eye ID " << i+1 << endl;
-            }
-
-            *itemp = *itemp + aboveerr;
-            cout << "Number of surviving showers = " << *itemp << endl;
-
-            if( (nracteyes > 0) && (*itemp > 0) )
-            {
-	       if(k == 0)
-	       {
-	          if(*itemp == 0)
-		     *x = 0;
-		  else
-                     *x = *x/(double)*itemp;
-                  *xerr = *xerr/(double)*itemp;
-	       }
-	       else
-	       {
-	          if(*itemp == 0)
-		     *y = 0;
-		  else
-                     *y = *y/(double)*itemp;
-                  *yerr = *yerr/(double)*itemp;
-	       }
-            }
-         }
-         // Getting shower foot information (shfoot)
-         if( directiveaffil[seldir[k]] == "eyelong" )
-         {
-	    if(k == 0) *x = 0;
-            else *y = 0;
-	    if(k == 0) {derr[0] = 0; derr[1] = 0;}
-            else {derr[0] = 0; derr[1] = 0;}
-            *itemp = 0;
-            eyecnt = 0;
-            aboveerr = 0;
-
-            for(int i = 0; i < ALLEYES; i++)
-            {
-               if(eyevalid[i] != 0)
-               {
-                  if(eyevalid[i] == 1)
-                  {
-                     GetEyeTree(i+1);
-                     cout << "Active eye: " << i+1 << endl;
-
-                     if( (k == 0) && (directive[seldir[k]] == "shfoot") )
-                        GetData(sepdir, seldir, "Xaxis", x, derr, itemp, eyecnt);
-                     else if( (k == 0) && (directive[seldir[k]] != "shfoot") )
-                        GetData(sepdir, seldir, "Xaxis", x, xerr, itemp, eyecnt);
-                     else if( (k == 1) && (directive[seldir[k]] == "shfoot") )
-                        GetData(sepdir, seldir, "Yaxis", y, derr, itemp, eyecnt);
-                     else if( (k == 1) && (directive[seldir[k]] != "shfoot") )
-                        GetData(sepdir, seldir, "Yaxis", y, yerr, itemp, eyecnt);
-                  }
-                  eyecnt++;
-               }
-               else
-                  cout << "No FD data to plot for eye ID " << i+1 << endl;
-            }
-
-            *itemp = *itemp + aboveerr;
-            cout << "Number of surviving showers = " << *itemp << endl;
-
-            if( (nracteyes > 0) && (*itemp > 0) )
-            {
-	       if(k == 0)
-	       {
-	          if(*itemp == 0)
-		     *x = 0;
-		  else
-                     *x = *x/(double)*itemp;
-
-		  if(directive[seldir[k]] == "shfoot")
-		  {
- 		     derr[0] = derr[0]/(double)*itemp;
- 		     derr[1] = derr[1]/(double)*itemp;
-		  }
-		  else
-                     *xerr = *xerr/(double)*itemp;
-	       }
-	       else
-	       {
-	          if(*itemp == 0)
-		     *y = 0;
-		  else
-                     *y = *y/(double)*itemp;
-
-		  if(directive[seldir[k]] == "shfoot")
-		  {
- 		     derr[0] = derr[0]/(double)*itemp;
- 		     derr[1] = derr[1]/(double)*itemp;
-		  }
-		  else
-                     *yerr = *yerr/(double)*itemp;
-	       }
-            }
-         }
-         // Getting SD reconstructed data (actstation, energy, S1000, curvature)
-         if( directiveaffil[seldir[k]] == "showsrecdata" )
-         {
-	    if(k == 0) *x = 0;
-	    else *y = 0;
-	    if(k == 0) *xerr = 0;
-            else *yerr = 0;
-	    *itemp = 0;
-
-            if(k == 0)
-	       GetData(sepdir, seldir, "Xaxis", x, xerr, itemp, 0);
+//	    cout << obsvars[i] << "\t";
+	    fprintf(fpall, "%lf\t", obsvars[i]);
+	    fprintf(fpsigstart, "%lf\t", obsvars[i]);
+
+            if(reader->EvaluateMVA(mvamethod) >= cutmva)
+	       fprintf(fpsig, "%lf\t", obsvars[i]);
             else
-	       GetData(sepdir, seldir, "Yaxis", y, yerr, itemp, 0);
+	       fprintf(fpback, "%lf\t", obsvars[i]);
 	 }
-         // Getting FD reconstructed data (acteyes)
-         if( directiveaffil[seldir[k]] == "showfrecdata" )
-         {
-	    if(k == 0) *x = 0;
-	    else *y = 0;
-	    if(k == 0) *xerr = 0;
-            else *yerr = 0;
-	    *itemp = 0;
+//	 cout << reader->EvaluateMVA(mvamethod) << "\n";
+	 fprintf(fpall, "%lf\n", reader->EvaluateMVA(mvamethod));
+	 fprintf(fpsigstart, "%lf\n", reader->EvaluateMVA(mvamethod));
 
-            if(k == 0)
-	       GetData(sepdir, seldir, "Xaxis", x, xerr, itemp, 0);
-            else
-	       GetData(sepdir, seldir, "Yaxis", y, yerr, itemp, 0);
-	 }
-         // Getting tank risetime calculation (risetime)
-         if( directiveaffil[seldir[k]] == "tankvem" )	// TODO: Early and late risetimes (Slightly working)
-         {
-	    if(k == 0) *x = 0;
-	    else *y = 0;
-	    if(k == 0) *xerr = 0;
-            else *yerr = 0;
-            *itemp = 0;
-	    *cordist = 1.e+40;
-
-            if( (directive[seldir[k]] == "risetimeearly") || (directive[seldir[k]] == "risetimelate") )
-            {
-               for(int i = 0; i < nracttanks; i++)
-               {
-                  showtankdata->SetBranchAddress("distance", &etemp);
-                  showtankdata->GetEntry(i);
-
-                  if(etemp.val < *cordist)
-                  {
-                     *cordist = etemp.val;
-                     *nrpoints = i;
-                  }
-
-                  cout << "Distance from core = " << etemp.val << endl;
-               }
-
-               showtankdata->SetBranchAddress("starttime", &stime);
-               showtankdata->GetEntry(*nrpoints);
-
-//             cout << "Core tank " << *nrpoints << " at distance " << *cordist << " has a timestamp of " << stime.nsec << endl;
-               *cordist = stime.nsec;
-            }
-
-            for(int i = 0; i < nracttanks; i++)
-            {
-               if( xvalue.size() != 0 )
-                  xvalue.erase(xvalue.begin(),xvalue.end());
-               if( yvalue.size() != 0 )
-                  yvalue.erase(yvalue.begin(),yvalue.end());
-
-               showtankdata->SetBranchAddress("starttime", &stime);
-               showtankdata->GetEntry(i);
-
-               GetTankTree(acttanks[i]);
-               cout << "Active tank: " << acttanks[i] << endl;
-
-               if(k == 0)
-	       {
-                  if( directive[seldir[0]] == "risetimeearly" )
-	          {
-	             if(stime.nsec < *cordist)
- 	                GetRisetime(i, stime.nsec, seldir, infilenr, itemp, x);
-	             else if(stime.nsec == *cordist)
-	                cout << "Tank " << i << " not used for early risetime calculations (tank closest to core)." << endl;
-	             else
-	                cout << setprecision(9) << "Tank " << i << " not used for early risetime calculations (" << stime.nsec << " >= " << *cordist << ")." << endl;
-	          }
-                  else if( directive[seldir[0]] == "risetimelate" )
-	          {
-	             if(stime.nsec > *cordist)
-	                GetRisetime(i, stime.nsec, seldir, infilenr, itemp, x);
-	             else if(stime.nsec == *cordist)
-	                cout << "Tank " << i << " not used for early risetime calculations (tank closest to core)." << endl;
-	             else
-	                cout << setprecision(9) << "Tank " << i << " not used for late risetime calculations (" << stime.nsec << " <= " << *cordist << ")." << endl;
-	          }
-	          else
-	             GetRisetime(i, stime.nsec, seldir, infilenr, itemp, x);
-	       }
-	       else
-	       {
-                  if( directive[seldir[0]] == "risetimeearly" )
-	          {
-	             if(stime.nsec < *cordist)
- 	                GetRisetime(i, stime.nsec, seldir, infilenr, itemp, y);
-	             else if(stime.nsec == *cordist)
-	                cout << "Tank " << i << " not used for early risetime calculations (tank closest to core)." << endl;
-	             else
-	                cout << setprecision(9) << "Tank " << i << " not used for early risetime calculations (" << stime.nsec << " >= " << *cordist << ")." << endl;
-	          }
-                  else if( directive[seldir[0]] == "risetimelate" )
-	          {
-	             if(stime.nsec > *cordist)
-	                GetRisetime(i, stime.nsec, seldir, infilenr, itemp, y);
-	             else if(stime.nsec == *cordist)
-	                cout << "Tank " << i << " not used for early risetime calculations (tank closest to core)." << endl;
-	             else
-	                cout << setprecision(9) << "Tank " << i << " not used for late risetime calculations (" << stime.nsec << " <= " << *cordist << ")." << endl;
-	          }
-	          else
-	             GetRisetime(i, stime.nsec, seldir, infilenr, itemp, y);
-	       }
-            }
-
-            if( (nracttanks > 0) && (*itemp > 0) )
-            {
-               if(k == 0)
-                  *x = *x/(double)*itemp;
-	       else
-                  *y = *y/(double)*itemp;
-
-	       if(k == 0)
-	          *xerr = 1.e-5;
-	       else
-	          *yerr = 1.e-5;
-            }
-         }
-
-         // Set ranges
-         if(directivetype[seldir[0]] == 'S')
-	    SetRanges2D(seldir, x, derr, y, yerr, k);
-         else if(directivetype[seldir[1]] == 'S')
-	    SetRanges2D(seldir, x, xerr, y, derr, k);
+         if(reader->EvaluateMVA(mvamethod) >= cutmva)
+	    fprintf(fpsig, "%lf\n", reader->EvaluateMVA(mvamethod));
 	 else
-	    SetRanges2D(seldir, x, xerr, y, yerr, k);
-      }// end of both directives (for k)
+	    fprintf(fpback, "%lf\n", reader->EvaluateMVA(mvamethod));
 
-      // Select what to plot
-      if( (directivetype[seldir[0]] == 'E') || (directivetype[seldir[1]] == 'E') )
-      {
-         if( (directiveaffil[seldir[0]] == "showeyedata") || (directiveaffil[seldir[1]] == "showeyedata") ) // don't write out zero values for eye values
-	 {
-	    if( ((directiveaffil[seldir[0]] == "showeyedata") && ((int)*x == 0)) || ((directiveaffil[seldir[1]] == "showeyedata") && ((int)*y == 0)) || (nracteyes == 0) )
-	       cout << "No values to plot." << endl;
-	    else
-	    {
-	       if(directive[seldir[0]] == "shfoot")
-	       {
-                  grAsymmErr->SetPoint(pointcnt,*x,*y);
-                  grAsymmErr->SetPointError(pointcnt,derr[0],derr[1],*yerr,*yerr);
-                  cout << "The value to plot " << *x << " (+" << derr[1] << "-" << derr[0] << "), " << *y << " (" << *yerr << ")" << endl;
-
-	          pointcnt++;
-	       }
-	       else if(directive[seldir[1]] == "shfoot")
-	       {
-                  grAsymmErr->SetPoint(pointcnt,*x,*y);
-                  grAsymmErr->SetPointError(pointcnt,*xerr,*xerr,derr[0],derr[1]);
-                  cout << "The value to plot " << *x << " (" << *xerr << "), " << *y << " (+" << derr[1] << "-" << derr[0] << ")" << endl;
-
-	          pointcnt++;
-	       }
-	       else
-	       {
-                  grErr->SetPoint(pointcnt,*x,*y);
-                  grErr->SetPointError(pointcnt,*xerr,*yerr);
-                  cout << "The value to plot " << *x << " (" << *xerr << "), " << *y << " (" << *yerr << ")" << endl;
-
-	          pointcnt++;
-	       }
-	    }
-	 }
+         if(reader->EvaluateMVA(mvamethod) >= cutmva)
+	    sigval++;
 	 else
-	 {
-            grErr->SetPoint(pointcnt,*x,*y);
-            grErr->SetPointError(pointcnt,*xerr,*yerr);
-            cout << "The value to plot " << *x << " (" << *xerr << "), " << *y << " (" << *yerr << ")" << endl;
-
-	    pointcnt++;
-	 }
-      }
-      else
-      {
-         gr->SetPoint(infilenr,*x,*y);
-         cout << "The value to plot " << *x << ", " << *y << endl;
-      }// end of plot selection
-
-      // Saving the final plot, when we finish with the last file
-      if( infilenr+1 == tarnames.size() )
-      {
-         if( (directivetype[seldir[0]] == 'E') || (directivetype[seldir[1]] == 'E') )
-	 {
-            // Removing any unused points
-	    if(infilenr >= pointcnt)
-	    {
-	       if((directive[seldir[0]] == "shfoot") || (directive[seldir[1]] == "shfoot"))
-	       {
-	          *itemp = grAsymmErr->GetN();
-		  cout << "All points = " << *itemp << ", Actual points = " << pointcnt << ": ";
-	          for(int h = pointcnt; h < *itemp; h++)
-	             grAsymmErr->RemovePoint(pointcnt);
-	       }
-	       else
-	       {
-	          *itemp = grErr->GetN();
-		  cout << "All points = " << *itemp << ", Actual points = " << pointcnt << ": ";
-	          for(int h = pointcnt; h < *itemp; h++)
-	             grErr->RemovePoint(pointcnt);
-	       }
-	       cout << "Removing excess points." << endl;
-	    }
-
-	    if((directive[seldir[0]] == "shfoot") || (directive[seldir[1]] == "shfoot"))
-	    {
-               grAsymmErr->GetXaxis()->SetRangeUser(xrange[0]-0.1*(xrange[1]-xrange[0]),xrange[1]+0.1*(xrange[1]-xrange[0]));
-               grAsymmErr->GetYaxis()->SetRangeUser(yrange[0]-0.1*(yrange[1]-yrange[0]),yrange[1]+0.1*(yrange[1]-yrange[0]));
-	       if(directive[seldir[0]] == "shfoot")
-                  *stemp = ";Depth of " + IntToStr((int)(shfootlimit*100)) + directivedesc[seldir[0]] + ";" + directivedesc[seldir[1]];
-	       else if(directive[seldir[1]] == "shfoot")
-                  *stemp = ";" + directivedesc[seldir[0]] + ";Depth of " + IntToStr((int)(shfootlimit*100)) + directivedesc[seldir[1]];
-               grAsymmErr->SetTitle((*stemp).c_str());
-	       grAsymmErr->SetMarkerStyle(20);
-	       grAsymmErr->SetLineColor(kRed-5);
-	       grAsymmErr->SetMarkerColor(kRed);
-	       grAsymmErr->SetMarkerSize(0.8);
-               grAsymmErr->Draw("AP");
-	    }
-	    else
-	    {
-               grErr->GetXaxis()->SetRangeUser(xrange[0]-0.1*(xrange[1]-xrange[0]),xrange[1]+0.1*(xrange[1]-xrange[0]));
-               grErr->GetYaxis()->SetRangeUser(yrange[0]-0.1*(yrange[1]-yrange[0]),yrange[1]+0.1*(yrange[1]-yrange[0]));
-               *stemp = ";" + directivedesc[seldir[0]] + ";" + directivedesc[seldir[1]];
-               grErr->SetTitle((*stemp).c_str());
-	       grErr->SetMarkerStyle(20);
-	       grErr->SetLineColor(kRed-5);
-	       grErr->SetMarkerColor(kRed);
-	       grErr->SetMarkerSize(0.8);
-               grErr->Draw("AP");
-	    }
-	 }
-	 else
-	 {
-            gr->GetXaxis()->SetRangeUser(xrange[0]-0.1*(xrange[1]-xrange[0]),xrange[1]+0.1*(xrange[1]-xrange[0]));
-            gr->GetYaxis()->SetRangeUser(yrange[0]-0.1*(yrange[1]-yrange[0]),yrange[1]+0.1*(yrange[1]-yrange[0]));
-            *stemp = ";" + directivedesc[seldir[0]] + ";" + directivedesc[seldir[1]];
-            gr->SetTitle((*stemp).c_str());
-	    gr->SetMarkerStyle(20);
-	    gr->SetMarkerColor(kRed);
-	    gr->SetMarkerSize(0.6);
-            gr->Draw("AP");
-	 }
-      
-         *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_vs_" + directive[seldir[1]] + ".pdf";
-         c1->SaveAs((*stemp).c_str());
-
-         // Additional .C export sequence
-         *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_vs_" + directive[seldir[1]] + ".C";
-         c1->SaveAs((*stemp).c_str());
-      }// end of saving final plot
-   }
-//------------------------------------------------------------------------------------------
-   else
-      return -1;
-
-   delete x;
-   delete xerr;
-   delete y;
-   delete yerr;
-   delete nrpoints;
-   delete stemp;
-   delete itemp;
-   delete dtemp;
-   delete[] derr;
-   delete cordist;
-
-   return 0;
-}
-
-int AnalyseTool::GetData(std::string *sepdir, int *seldir, std::string type, double *out, double *outerr, int *count, int intanknr)
-{
-   cout << "# Entering function AnalyseTool::GetData()..." << endl;
-   TTree *seltree;
-
-   int *useddir;
-   useddir = new int;
-
-   // Save the relevant seldir to the useddir
-   if(type == "Xaxis")
-      *useddir = seldir[0];
-   else if(type == "Yaxis")
-      *useddir = seldir[1];
-   else if(type == "Zaxis")
-      *useddir = seldir[2];
-   else
-      return -1;
-
-   if(directiveaffil[*useddir] == "showtankdata")
-      seltree = (TTree*)showtankdata;
-   else if(directiveaffil[*useddir] == "showeyedata")
-      seltree = (TTree*)showeyedata;
-   else if(directiveaffil[*useddir] == "showsrecdata")
-      seltree = (TTree*)showsrecdata;
-   else if(directiveaffil[*useddir] == "showfrecdata")
-      seltree = (TTree*)showfrecdata;
-   else if(directiveaffil[*useddir] == "eyelong")
-      seltree = (TTree*)cureyelongdata;
-   else
-      return -1;
-
-   double *x, *xerr, *dtemp1, *dtemp2, *dtemp3;
-   int *itemp;
-
-   double errvalue[2];
-
-   x = new double;
-   xerr = new double;
-   dtemp1 = new double;
-   dtemp2 = new double;
-   dtemp3 = new double;
-   itemp = new int;
-
-   struct { double val, err; } etemp, xmaxtemp;
-   struct { double zenith, azimuth; } dirtemp;
-
-   // Check what kind of data type we have
-   if(directivetype[*useddir] == 'D')
-   {
-      seltree->SetBranchAddress((directivetrees[*useddir]).c_str(), x);
-      seltree->GetEntry(intanknr);
-   }
-   else if(directivetype[*useddir] == 'I')
-   {
-      seltree->SetBranchAddress((directivetrees[*useddir]).c_str(), itemp);
-      seltree->GetEntry(intanknr);
-      *x = *itemp;
-   }
-   else if(directivetype[*useddir] == 'E')
-   {
-      seltree->SetBranchAddress((directivetrees[*useddir]).c_str(), &etemp);
-      seltree->GetEntry(intanknr);
-      *x = etemp.val;
-      *xerr = etemp.err;
-      cout << "Values: " << *x << "\t" << *xerr << endl;
-   }
-
-   // Check for xmax errors
-   if((directiveaffil[*useddir] == "showeyedata") || (directiveaffil[*useddir] == "eyelong"))
-   {
-      showeyedata->SetBranchAddress("xmax", &xmaxtemp);
-      showeyedata->GetEntry(intanknr);
-      xmaxerr.push_back(xmaxtemp.err);
-      cout << "Eye return value (i=" << *count << ") = " << xmaxerr[*count] << endl;
-   }
-
-   // Check for the zenith angle (vertical -> slantset = 0, slanted -> slantset = 1)
-   if(slantset != -1)
-   {
-      showsimdata->SetBranchAddress("direction", &dirtemp);
-      showsimdata->GetEntry(0);
-      cout << "Zenith angle (" << slantset << ") = " << dirtemp.zenith << endl;
-   }
-
-   if( (directive[*useddir] == "totalvemmax") )	// Maximum VEM signal
-   {
-      if( *x > *out )
-      {
-         *out = *x;
-	 if(directivetype[*useddir] == 'E') *outerr = *xerr;
-         else *outerr = 1.e-5;
-      }
-      *count = 1;
-   }
-   else if( (directive[*useddir] == "xmaxqual") ) // Minimum Xmax error (best Xmax estimation)
-   {
-      if( *xerr < *outerr )
-      {
-         if( (xmaxlimit != 0.) && (xmaxerr[*count] <= xmaxlimit) )
-	 {
-            if(slantset == 0)
-               *out = (*x)*(cos(dirtemp.zenith));
-   	    else
-	       *out = *x;
-	    if(directivetype[*useddir] == 'E') *outerr = *xerr;
-	    else *outerr = 1.e-5;
-	 }
-	 else if( (xmaxlimit != 0.) && (xmaxerr[*count] > xmaxlimit) )
-	 {
-            cout << "Shower with " << *x << " (" << *xerr << ") has too large error (" << xmaxerr[*count] << ")" << endl;
-	    aboveerr--;
-	 }
-	 else
-         {
-	    *out = *x;
-	    if(directivetype[*useddir] == 'E') *outerr = *xerr;
-	    else *outerr = 1.e-5;
-	 }
-      }
-
-      *count += 1;
-   }
-   else if( (directive[*useddir] == "totalvemaver") || (directive[*useddir] == "muoncountaver") || (directive[*useddir] == "distaver") || (directive[*useddir] == "fdenergy") || (directive[*useddir] == "fdemenergy") || (directive[*useddir] == "xmax") )	// Average VEM signal, muon count, distance, energy, xmax
-   {
-      if( ((directiveaffil[*useddir] == "showeyedata") || (directiveaffil[*useddir] == "eyelong")) && (xmaxlimit != 0.) && (xmaxerr[*count] <= xmaxlimit) )
-      {
-         if((slantset == 0) && (directive[*useddir] == "xmax"))
-	 {
-            *out += (*x)*(cos(dirtemp.zenith));
-	    cout << "Vertical Xmax = " << (*x)*(cos(dirtemp.zenith)) << ", Slant Xmax = " << *x << endl;
-	 }
-	 else
-            *out += *x;
-         if(directivetype[*useddir] == 'E') *outerr += *xerr;
-         else *outerr = 1.e-5;
+	    backval++;
       } 
-      else if( ((directiveaffil[*useddir] == "showeyedata") || (directiveaffil[*useddir] == "eyelong")) && (xmaxlimit != 0.) && (xmaxerr[*count] > xmaxlimit) )
+
+      ifile->Close();
+
+// GKM
+std::cout << "Signal TTree: There were " << sigval << " signal events and " << backval << " background events" << std::endl;
+// GKM
+
+      ifile = TFile::Open(stemp.c_str());
+
+      signalName = "TreeB" + IntToStr(whichAnalysis);
+
+      TTree *backgroundapp = (TTree*)ifile->Get(signalName.c_str());
+
+      for(int i = 0; i < observables.size(); i++)
+         backgroundapp->SetBranchAddress((observables[i]).c_str(), &obsvars[i]);
+
+      backval = 0; sigval = 0;
+
+      for(int ievt=0; ievt < backgroundapp->GetEntries(); ievt++)
       {
-         cout << "Shower with " << *x << " (" << *xerr << ") has too large error (" << xmaxerr[*count] << ")" << endl;
-	 *out += 0;
-	 *outerr += 0;
-	 aboveerr--;
-      }
-      else
-      {
-         *out += *x;
-         if(directivetype[*useddir] == 'E') *outerr += *xerr;
-         else *outerr = 1.e-5;
-      }
+         backgroundapp->GetEntry(ievt);
 
-      *count += 1;
-   }
-   else if( (directive[*useddir] == "muoncount") || (directive[*useddir] == "totalvemsum") )		// Total muon count, VEM sum
-   {
-      *out += *x;
-      if(directivetype[*useddir] == 'E') *outerr = *xerr;
-      *count = 1;
-   }
-   else if( (directive[*useddir] == "actstation") || (directive[*useddir] == "sdenergy") || (directive[*useddir] == "S1000") || (directive[*useddir] == "curvature") || (directive[*useddir] == "acteyes") )
-   {
-      *out = *x;
-      if(directivetype[*useddir] == 'E') *outerr = *xerr;
-      *count = 1;
-   }
-   else if( (directive[*useddir] == "shfoot") )	// Shower foot calculation
-   {
-//cout << "Entries: " << seltree->GetEntries() << endl;
+         for(int i = 0; i < observables.size(); i++)
+	 {
+//	    cout << obsvars[i] << "\t";
+	    fprintf(fpall, "%lf\t", obsvars[i]);
+	    fprintf(fpbackstart, "%lf\t", obsvars[i]);
 
-      *x = 0;
-      *xerr = 0;
+            if(reader->EvaluateMVA(mvamethod) >= cutmva)
+	       fprintf(fpsig, "%lf\t", obsvars[i]);
+            else
+	       fprintf(fpback, "%lf\t", obsvars[i]);
+	 }
+//	 cout << reader->EvaluateMVA(mvamethod) << "\n";
+	 fprintf(fpall, "%lf\n", reader->EvaluateMVA(mvamethod));
+	 fprintf(fpbackstart, "%lf\n", reader->EvaluateMVA(mvamethod));
 
-      if( xfoot.size() != 0 )
-         xfoot.erase(xfoot.begin(),xfoot.end());
-      if( yfoot.size() != 0 )
-         yfoot.erase(yfoot.begin(),yfoot.end());
-      if( yerrfoot.size() != 0 )
-         yerrfoot.erase(yerrfoot.begin(),yerrfoot.end());
-
-//cout << "All entries:" << endl;
-      for(int i = 0; i < seltree->GetEntries(); i++)
-      {
-//cout << i << ": ";
-         seltree->SetBranchAddress("x", dtemp1);
-         seltree->GetEntry(i);
-//cout << *dtemp1 << "\t";
-         if(slantset == 0)
-            xfoot.push_back((*dtemp1)*(cos(dirtemp.zenith)));
+         if(reader->EvaluateMVA(mvamethod) >= cutmva)
+	    fprintf(fpsig, "%lf\n", reader->EvaluateMVA(mvamethod));
 	 else
-            xfoot.push_back(*dtemp1);
+	    fprintf(fpback, "%lf\n", reader->EvaluateMVA(mvamethod));
 
-         seltree->SetBranchAddress("y", dtemp2);
-         seltree->GetEntry(i);
-//cout << *dtemp2 << "\t";
-	 *x += *dtemp2;
-         yfoot.push_back(*x);
+         if(reader->EvaluateMVA(mvamethod) >= cutmva)
+	    sigval++;
+	 else
+	    backval++;
+      } 
 
-         seltree->SetBranchAddress("yerr", dtemp3);
-         seltree->GetEntry(i);
-//cout << *dtemp3 << "\t" << *x << endl;
-	 *xerr += *dtemp3;
-         yerrfoot.push_back(*xerr);
-      }
+      ifile->Close();
 
-      *itemp = 0;
+// GKM
+std::cout << "Background TTree: There were " << sigval << " signal events and " << backval << " background events" << std::endl;
+fclose(fpsig);
+fclose(fpback);
+fclose(fpsigstart);
+fclose(fpbackstart);
+fclose(fpall);
+// GKM
 
-//cout << "Entries under limit:" << "\t";
-      for(int i = 0; i < yfoot.size(); i++)
-      {
-         if( (yfoot[i] >= shfootlimit*(yfoot[yfoot.size()-1])) && (*itemp == 0) )
-         {
-   	    *itemp = 1;
-
-	    // Find the x value of point with y value that is a fraction of the maximum, that lies on a line between two points
-	    // y = k*x + a
-	    //    k = (y2 - y1)/(x2 - x1)
-	    //    a = y2 - (y2 - y1)/(x2 - x1)*x2
-	    // x = ((x2 - x1)/(y2 - y1))*(y - y2) + x2
-//	    cout << "Izr.1a: P1 = (" << xfoot[i-1] << "," << yfoot[i-1] << "), P2 = (" << xfoot[i] << "," << yfoot[i] << ")" << endl;
-
-	    *dtemp1 = (xfoot[i] - xfoot[i-1])/(yfoot[i] - yfoot[i-1]); // 1/k = (x2 - x1)/(y2 - y1)
-	    *dtemp2 = shfootlimit*(yfoot[yfoot.size()-1]) - yfoot[i]; // y - y2
-            *x = (*dtemp1)*(*dtemp2) + xfoot[i]; // x = (1/k)*(y - y2) + x2
-
-//	    cout << "Izr.1b: 1/k = " << *dtemp1 << ", max = " << yfoot[yfoot.size()-1] << ", y - y2 = " << *dtemp2 << ", x = " << *x << endl;
-//	    cout << "Izr.2a: P1err = (" << xfoot[i-1] << "," << yerrfoot[i-1] << "), P2err = (" << xfoot[i] << "," << yerrfoot[i] << ")" << endl;
-
-            *dtemp1 = (xfoot[i] - xfoot[i-1])/(yfoot[i]+yerrfoot[i] - (yfoot[i-1]+yerrfoot[i-1])); // 1/kerr = (x2 - x1)/(y2err - y1err)
-	    *dtemp2 = (yfoot[i]+yerrfoot[i]) - (1/(*dtemp1))*(xfoot[i]); // aerr = y2err - (y2err - y1err)/(x2 - x1)*x2
-	    *dtemp3 = (1/(*dtemp1))*(*x) + (*dtemp2); // yerr = kerr*x + aerr
-	    *xerr = (*dtemp3) - (((yfoot[i] - yfoot[i-1])/(xfoot[i] - xfoot[i-1]))*(*x) + (yfoot[i] - ((yfoot[i] - yfoot[i-1])/(xfoot[i] - xfoot[i-1]))*(xfoot[i]))); // Dy = yerr - y
-
-//	    cout << "Izr.2b: 1/kerr = " << *dtemp1 << ", a = " << *dtemp2 << ", yerr = " << *dtemp3 << ", Dy = " << *xerr << endl;
-
-	    *dtemp1 = ((yfoot[i] - yfoot[i-1])/(xfoot[i] - xfoot[i-1]))*(*x) + (yfoot[i] - ((yfoot[i] - yfoot[i-1])/(xfoot[i] - xfoot[i-1]))*(xfoot[i])); // y = k*x + a
-
-            for(int j = i; ; j++)
-	    {
-	       if( yfoot[j] >= (*dtemp1)+(*xerr) )
-	       {
-        	  *dtemp2 = xfoot[j];
-//                cout << "Upper limit is = " << xfoot[j] << endl;
-     	     break;
-               }
-            }
-            for(int j = i; ; j--)
-            {
-               if(j == 0)
-               {
-	          *dtemp3 = xfoot[j];
-//	          cout << "Lower limit is = " << xfoot[j] << endl;
-     	          break;
-               }
-
-	       if( yfoot[j] <= (*dtemp1)-(*xerr) )
-	       {
-	          *dtemp3 = xfoot[j];
-//	          cout << "Lower limit is = " << xfoot[j] << endl;
-	          break;
-	       }
-	    }
-//	    *dtemp2 = ((xfoot[i] - xfoot[i-1])/(yfoot[i] - yfoot[i-1]))*((*dtemp1 + (*xerr)) - (yfoot[i] - ((yfoot[i] - yfoot[i-1])/(xfoot[i] - xfoot[i-1]))*(xfoot[i]))); // x+Dx = ((y+Dy - a)/k
-//	    *dtemp3 = ((xfoot[i] - xfoot[i-1])/(yfoot[i] - yfoot[i-1]))*((*dtemp1 - (*xerr)) - (yfoot[i] - ((yfoot[i] - yfoot[i-1])/(xfoot[i] - xfoot[i-1]))*(xfoot[i])));// x-Dx = ((y-Dy - a)/k
-//	    *xerr = (*dtemp2) - (*x); // Dx = x+Dx - x
-
-	    cout << "Izr.2c: x = " << *x << ", y = " << *dtemp1 << ", x+Dx = " << *dtemp2 << ", x-Dx = " << *dtemp3 << ", Dx+ = " << (*dtemp2)-(*x) << ", Dx- = " << (*x)-(*dtemp3) << endl;
-
-            if( ((xmaxlimit != 0.) && (xmaxerr[*count] <= xmaxlimit)) || (xmaxlimit == 0.) )
-            {
-               *out += *x;//xfoot[i-1];
-               outerr[0] += (*x)-(*dtemp3);
-               outerr[1] += (*dtemp2)-(*x);
-            }
-            else if( (xmaxlimit != 0.) && (xmaxerr[*count] > xmaxlimit) )
-            {
-               cout << "Shower with " << *x << " (+" << (*dtemp2)-(*x) << "-" << (*x)-(*dtemp3) << ") has too large Xmax error (" << xmaxerr[*count] << ")" << endl;
-	       *out += 0;
-	       outerr[0] += 0;
-	       outerr[1] += 0;
-      	       aboveerr--;
-            }
-//cout << i-1 << ": " << xfoot[i-1] << "\t" << yfoot[i-1] << "\t" << (yfoot[i-1]/(yfoot[yfoot.size()-1]))*100 << endl;
-//cout << i-1 << ": " << *x << "(" << *xerr << ")" << "\t" << *dtemp1 << "\t" << (*dtemp1/(yfoot[yfoot.size()-1]))*100 << endl;
-            break;
-         }
-      }
-
-      *count += 1;
+      delete reader;
+      delete mvatool;
    }
-
-   cout << intanknr << ": " << *out << ", " << *outerr << ", " << *count << endl;
-
-   delete x;
-   delete xerr;
-   delete dtemp1;
-   delete dtemp2;
-   delete dtemp3;
-   delete itemp;
 
    return 0;
 }
-
-int AnalyseTool::GetRisetime(int i, double nsec, int *seldir, int infilenr, int *itemp, double *output)
-{
-   cout << "# Entering function AnalyseTool::GetRisetime()..." << endl;
-   double *x;
-   double *y;
-   double *dtemp;
-   double *maxval;
-   int *nrpoints;
-   string *stemp;
-
-   double byrange[2];
-   double bzrange[2];
-   byrange[0] = 1.e+40;
-   byrange[1] = -1.e+40;
-   bzrange[0] = 1.e+40;
-   bzrange[1] = -1.e+40;
-
-   x = new double;
-   y = new double;
-   dtemp = new double;
-   maxval = new double;
-   nrpoints = new int;
-   stemp = new string;
-
-   *nrpoints = curtankvemdata->GetEntries();
-
-   *y = 0;
-   *maxval = -1.e40; // maxval acts as a maximum finder
-
-   // Get the cumulative histogram of the VEM signal
-   for(int j = 0; j < *nrpoints; j++)
-   {
-      curtankvemdata->SetBranchAddress("time", x);
-      curtankvemdata->GetEntry(j);
-      curtankvemdata->SetBranchAddress("vem", dtemp);
-      curtankvemdata->GetEntry(j);
-
-      *x = *x - nsec;
-      *y += *dtemp;
-
-      if( *y > *maxval )
-         *maxval = *y;
-
-      xvalue.push_back(*x);
-      yvalue.push_back(*y);
-   }
-
-   if(btemp) grtemp = new TGraph(*nrpoints);
-
-   for(int j = 0; j < *nrpoints; j++)
-   {
-      if(btemp)
-      {
-         if( yvalue[j]/(*maxval) < 0.05 )
-            temprange[0] = xvalue[j];
-         if( yvalue[j]/(*maxval) <= 0.80 )
-            temprange[1] = xvalue[j];
-      }
-
-      if( yvalue[j]/(*maxval) <= 0.10 )
-      {
-         byrange[0] = yvalue[j]/(*maxval);
-         byrange[1] = yvalue[j+1]/(*maxval);
-
-         *y = 0.1;
-         // Find the x value of point with y value = *y = 0.1, that lies on a line between two points
-         // y = k*x + a
-         //    k = (y2 - y1)/(x2 - x1)
-         //    a = y2 - (y2 - y1)/(x2 - x1)*x2
-         // x = ((x2 - x1)/(y2 - y1))*(y - y2) + x2
-         *x = ((xvalue[j+1] - xvalue[j])*((*y) - byrange[1]))/(byrange[1] - byrange[0]) + xvalue[j+1];
-
-         byrange[0] = *x;
-         byrange[1] = *y;
-      }
-
-      if( yvalue[j]/(*maxval) <= 0.50 )
-      {
-         bzrange[0] = yvalue[j]/(*maxval);
-         bzrange[1] = yvalue[j+1]/(*maxval);
-
-         *y = 0.5;
-         // Find the x value of point with y value = *y = 0.5, that lies on a line between two points
-         // y = k*x + a
-         //    k = (y2 - y1)/(x2 - x1)
-         //    a = y2 - (y2 - y1)/(x2 - x1)*x2
-         // x = ((x2 - x1)/(y2 - y1))*(y - y2) + x2
-         *x = ((xvalue[j+1] - xvalue[j])*((*y) - bzrange[1]))/(bzrange[1] - bzrange[0]) + xvalue[j+1];
-
-         bzrange[0] = *x;
-         bzrange[1] = *y;
-      }
-
-      if(btemp) grtemp->SetPoint(j,xvalue[j],yvalue[j]/(*maxval));
-   }
-
-   // Plotting of cumulative VEM signals (only if btemp is true)
-   if(btemp)
-   {
-      grtemp->GetXaxis()->SetRangeUser(temprange[0],temprange[1]);
-      grtemp->GetYaxis()->SetRangeUser(0,1);
-      *stemp = directive[seldir[0]] + " " + IntToStr(infilenr+1) + ", tank " + IntToStr(i+1) + " (" + IntToStr(acttanks[i]) + ");SD tank time (ns);";
-      grtemp->SetTitle((*stemp).c_str());
-      grtemp->Draw("AL");
-
-//      cout << "Graph range: " << xrange[0] << ", " << xrange[1] << endl;
-//      cout << "Low point:   " << byrange[0] << ", " << byrange[1] << endl;
-//      cout << "High point:  " << bzrange[0] << ", " << bzrange[1] << endl;
-      TMarker *m1 = new TMarker(byrange[0],byrange[1],20);
-      TMarker *m2 = new TMarker(bzrange[0],bzrange[1],20);
-      m1->SetMarkerColor(kRed);
-      m1->SetMarkerSize(0.8);
-      m1->Draw();
-      m2->SetMarkerColor(kRed);
-      m2->SetMarkerSize(0.8);
-      m2->Draw();
-
-      if( (infilenr < 9) && (i < 9) )
-         *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_0" + IntToStr(infilenr+1) + "_0" + IntToStr(i+1) + "_multi" + ".pdf";
-      else if( (infilenr < 9) && (i >= 9) )
-         *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_0" + IntToStr(infilenr+1) + "_" + IntToStr(i+1) + "_multi" + ".pdf";
-      else if( (infilenr >= 9) && (i < 9) )
-         *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_" + IntToStr(infilenr+1) + "_0" + IntToStr(i+1) + "_multi" + ".pdf";
-      else
-         *stemp = string(BASEDIR) + "/results/" + directive[seldir[0]] + "_" + IntToStr(infilenr+1) + "_" + IntToStr(i+1) + "_multi" + ".pdf";
-      c1->SaveAs((*stemp).c_str());
-
-      delete grtemp;
-   }
-
-   // Save the risetime to the actual plot we will be using
-   *output += (bzrange[0] - byrange[0]);
-   *itemp += 1;
-
-   delete x;
-   delete y;
-   delete dtemp;
-   delete stemp;
-   delete nrpoints;
-   delete maxval;
-
-   return 0;
-}
-
-void AnalyseTool::SetRanges2D(int *seldir, double *inx, double *inxerr, double *iny, double *inyerr, int axis)
-{
-   if(axis == 0)
-   {
-      if( ((directiveaffil[seldir[axis]] == "showeyedata") || (directiveaffil[seldir[axis]] == "eyelong")) && (*inx != 0.) )
-      {
-         if( directivetype[seldir[axis]] == 'E' )
-         {
-            if( (*inx)-(*inxerr) < xrange[0] )
-               xrange[0] = (*inx)-(*inxerr);
-            if( (*inx)+(*inxerr) > xrange[1] )
-               xrange[1] = (*inx)+(*inxerr);
-         }
-         else if( directivetype[seldir[axis]] == 'S' )
-         {
-            if( (*inx)-(inxerr[0]) < xrange[0] )
-               xrange[0] = (*inx)-(inxerr[0]);
-            if( (*inx)+(inxerr[1]) > xrange[1] )
-               xrange[1] = (*inx)+(inxerr[1]);
-         }
-         else
-         {
-            if( *inx < xrange[0] )
-               xrange[0] = *inx;
-            if( *inx > xrange[1] )
-               xrange[1] = *inx;
-         }
-      }
-      else if( ((directiveaffil[seldir[axis]] == "showeyedata") || (directiveaffil[seldir[axis]] == "eyelong")) && (*inx == 0.) )
-         cout << "Invalid point. Not counting towards x range." << endl;
-      else
-      {
-         if( directivetype[seldir[axis]] == 'E' )
-         {
-            if( (*inx)-(*inxerr) < xrange[0] )
-               xrange[0] = (*inx)-(*inxerr);
-            if( (*inx)+(*inxerr) > xrange[1] )
-               xrange[1] = (*inx)+(*inxerr);
-         }
-         else if( directivetype[seldir[axis]] == 'S' )
-         {
-            if( (*inx)-(inxerr[0]) < xrange[0] )
-               xrange[0] = (*inx)-(inxerr[0]);
-            if( (*inx)+(inxerr[1]) > xrange[1] )
-               xrange[1] = (*inx)+(inxerr[1]);
-         }
-         else
-         {
-            if( *inx < xrange[0] )
-               xrange[0] = *inx;
-            if( *inx > xrange[1] )
-               xrange[1] = *inx;
-         }
-      }
-   }
-   else
-   {
-      if( ((directiveaffil[seldir[axis]] == "showeyedata") || (directiveaffil[seldir[axis]] == "eyelong")) && (*iny != 0.) )
-      {
-         if( directivetype[seldir[axis]] == 'E' )
-         {
-            if( (*iny)-(*inyerr) < yrange[0] )
-               yrange[0] = (*iny)-(*inyerr);
-            if( (*iny)+(*inyerr) > yrange[1] )
-               yrange[1] = (*iny)+(*inyerr);
-         }
-         else if( directivetype[seldir[axis]] == 'S' )
-         {
-            if( (*iny)-(inyerr[0]) < yrange[0] )
-               yrange[0] = (*iny)-(inyerr[0]);
-            if( (*iny)+(inyerr[1]) > yrange[1] )
-               yrange[1] = (*iny)+(inyerr[1]);
-         }
-         else
-         {
-            if( *iny < yrange[0] )
-               yrange[0] = *iny;
-            if( *iny > yrange[1] )
-               yrange[1] = *iny;
-         }
-      }
-      else if( ((directiveaffil[seldir[axis]] == "showeyedata") || (directiveaffil[seldir[axis]] == "eyelong")) && (*iny == 0.) )
-         cout << "Invalid point. Not counting towards y range." << endl;
-      else
-      {
-         if( directivetype[seldir[axis]] == 'E' )
-         {
-            if( (*iny)-(*inyerr) < yrange[0] )
-               yrange[0] = (*iny)-(*inyerr);
-            if( (*iny)+(*inyerr) > yrange[1] )
-               yrange[1] = (*iny)+(*inyerr);
-         }
-         else if( directivetype[seldir[axis]] == 'S' )
-         {
-            if( (*iny)-(inyerr[0]) < yrange[0] )
-               yrange[0] = (*iny)-(inyerr[0]);
-            if( (*iny)+(inyerr[1]) > yrange[1] )
-               yrange[1] = (*iny)+(inyerr[1]);
-         }
-         else
-         {
-            if( *iny < yrange[0] )
-               yrange[0] = *iny;
-            if( *iny > yrange[1] )
-               yrange[1] = *iny;
-         }
-      }
-   }
-
-   cout << "Ranges are: (" << xrange[0] << ", " << xrange[1] << ") and (" << yrange[0] << ", " << yrange[1] << ")" << endl;
-}
-*/

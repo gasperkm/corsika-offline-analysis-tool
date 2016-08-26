@@ -230,7 +230,7 @@ void probas( TString fin = "TMVA.root", Bool_t useTMVAStyle = kTRUE )
                      // save canvas to file
                      c->Update();
                      TMVAGlob::plot_logo();
-                     sprintf( fname, "plots/mva_pdf_%s_c%i", methodTitle.Data(), countCanvas+1 );
+                     sprintf( fname, "root_mva/plots/mva_pdf_%s_c%i", methodTitle.Data(), countCanvas+1 );
                      if (Save_Images) TMVAGlob::imgconv( c, fname );
                      countCanvas++;
                   }

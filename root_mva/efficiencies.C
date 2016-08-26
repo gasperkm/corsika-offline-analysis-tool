@@ -189,11 +189,11 @@ void plot_efficiencies( TFile* file, Int_t type = 2, TDirectory* BinDir=0)
 
    c->Update();
 
-   TString fname = "plots/" + hNameRef;
+   TString fname = "root_mva/plots/" + hNameRef;
    if (TString(BinDir->GetName()).Contains("multicut")){
       TString fprepend(BinDir->GetName());
       fprepend.ReplaceAll("multicutMVA_","");
-      fname = "plots/" + fprepend + "_" + hNameRef;
+      fname = "root_mva/plots/" + fprepend + "_" + hNameRef;
    }
    if (__SAVE_IMAGE__) TMVAGlob::imgconv( c, fname );
 
