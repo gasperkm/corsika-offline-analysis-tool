@@ -14,8 +14,9 @@ LIBSO=-lRecEventKG -lAnalysisKG -lAugerEventIO -lAugerFramework -lAugerModules -
 #CFILES=$(shell find -maxdepth 1 -name "*.cc")
 CFILES=$(SRCDIR)/analysis_tool.cc $(SRCDIR)/massanalyse.cc $(SRCDIR)/adstanalyse.cc $(SRCDIR)/adst_mva.cc
 
-all: analysis_tool usage histogram_replot replot_usage rootadd rootadd_usage tmvagui tmvagui_usage
-debug: analysis_tool_dbg usage
+all: analysis_tool main_usage histogram_replot replot_usage rootadd rootadd_usage tmvagui tmvagui_usage
+debug: analysis_tool_dbg main_usage
+usage: main_usage replot_usage rootadd_usage tmvagui_usage
 
 analysis_tool: $(CFILES) $(IDIR)/analysis_tool.h
 	@echo "\nCompiling the main program."
@@ -25,13 +26,14 @@ analysis_tool_debug: $(CFILES) $(IDIR)/analysis_tool.h
 	@echo "\nCompiling the program."
 	$(CXX) $(INC) $(LIB) -std=c++11 $(CFILES) -g -o analysis_tool $(ROOTLIB) $(LIBSO)
 
-usage:
+main_usage:
 	@echo "\nUsage: ./analysis_tool [OPTIONS]"
 	@echo "[OPTIONS]:"
 	@echo "   -f [input ROOT analysis file]"
 	@echo "   -t [.tar.gz of multiple ROOT analysis files] (when using this option, the files inside the tar-ball"
 	@echo "      should not be in any folders)."
-	@echo "   -m [all ROOT files used in multivariate analysis]\n"
+	@echo "   -m [all ADST ROOT files used in multivariate analysis]"
+	@echo "   -mg [all ADST ROOT files used in multivariate analysis] (same as above, but with a GUI after traning MVA).\n"
 
 histogram_replot: $(SRCDIR)/histogram_replot.cc
 	@echo "\nCompiling Histogram replot program."

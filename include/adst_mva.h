@@ -22,6 +22,10 @@
 #include "TMath.h"
 #include "TColor.h"
 #include "TKey.h"
+#include "TStyle.h"
+#include "TLegend.h"
+#include "TNtuple.h"
+#include "TLine.h"
 
 #include "TMVA/Factory.h"
 #include "TMVA/Tools.h"
@@ -45,8 +49,7 @@ public:
    float shfoot;	// Shower foot
    float fdenergy;	// Total energy from FD
    float nrmu;		// number of muons at ground level
-   float ldf1000;	// S1000 or LDF signal at 1000m from the core
-   float shwsize;	// Shower size... replacement for S1000?
+   float shwsize;	// Shower size - replacement for S1000
    float ldfbeta;	// beta variable of the LDF
    float curvature;	// curvature R
    float risetime;	// risetime
@@ -60,6 +63,10 @@ public:
 
    // Rewrite
    void RewriteObservables(int innr, Observables sig, Observables back, TTree *back_tree);
+   void CreateMVAPlots(double cut, std::vector<std::string> obs);
+//   void SetPlotRange(TH1F *hist1, TH1F *hist2, double *xval, double *yval, double xrangeboost, double yrangeboost);
+   void SetPlotRange(TNtuple *sig, TNtuple *back, TH1F *base, double *val, double rangeboost, std::string obs, char xory);
+   void SetupAxis(TH1F *hist, std::string obs);
 
    // Reconstructed event variables (from the ADST format)
    RecEvent *fRecEvent;
@@ -77,6 +84,7 @@ public:
 //   TTree *back_tree;
    TTree *all_tree;
    std::string outname;
+   bool graphical;
 
    // Active eyes
    std::vector<FdRecShower> acteyes;
@@ -85,6 +93,9 @@ public:
    int GetShowerFoot(int longestEye, std::vector<FDEvent> fdevt);
    double shfootlimit;
    double shfoot;
+
+   // Boolean to say, if the reconstruction finished correctly
+   bool goodrec;
 };
 
 #endif

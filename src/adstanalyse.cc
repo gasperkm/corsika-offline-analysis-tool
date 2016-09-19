@@ -847,6 +847,8 @@ int AdstAnalyseTool::PlotLongProf(string *sepdir, int *seldir)
 
    c1 = new TCanvas("c1","c1",1200,800);
    c1->SetGrid();
+   c1->SetRightMargin(0.05);
+   c1->SetTopMargin(0.05);
 
    vector<FDEvent> fdevt = fRecEvent->GetFDEvents();
 
@@ -928,9 +930,30 @@ int AdstAnalyseTool::PlotLongProf(string *sepdir, int *seldir)
 
    grErr->SetMarkerStyle(20);
    grErr->SetMarkerSize(0.7);
-   sepdir[0] = directivedesc[seldir[0]] + ";Slant depth (g/cm^{2});Number of charged particles";
+   sepdir[0] = directivedesc[seldir[0]] + ";Slant depth (g/cm^{2});dE/dX (PeV/(g/cm^{2}))";
    grErr->SetTitle(sepdir[0].c_str());
+   grErr->GetXaxis()->SetTitleOffset(1.2);
+   grErr->GetXaxis()->CenterTitle(kTRUE);
+   grErr->GetXaxis()->SetLabelSize(0.028);
+   grErr->GetXaxis()->SetLabelOffset(0.015);
+   grErr->GetYaxis()->SetTitleOffset(1.3);
+   grErr->GetYaxis()->CenterTitle(kTRUE);
+   grErr->GetYaxis()->SetLabelSize(0.028);
+   grErr->GetYaxis()->SetLabelOffset(0.015);
+   grErr->SetTitle("");
    grErr->Draw("AP");
+
+   // Plot also the generated profile on top of it
+   GenShower genevt = fRecEvent->GetGenShower();
+   slantDepth = genevt.GetDepth();
+   profiledEdX = genevt.GetEnergyDeposit();
+   gr = new TGraph(slantDepth.size());
+
+   for(int i = 0; i < slantDepth.size(); i++)
+      gr->SetPoint(i,slantDepth[i],profiledEdX[i]);
+   gr->SetLineColor(kRed);
+   gr->SetLineWidth(2);
+   gr->Draw("LP;SAME");
       
    c1->SaveAs((*stemp).c_str());
    c1->SaveAs((*stemp2).c_str());
@@ -994,7 +1017,15 @@ int AdstAnalyseTool::PlotLongProf(string *sepdir, int *seldir)
          }
       }
 
-      grErrtemp->SetTitle(";Slant depth (g/cm^{2});Cumulative longitudinal distribution");
+      grErrtemp->SetTitle(";Slant depth (g/cm^{2});Cumulative dE/dX (PeV/(g/cm^{2}))");
+      grErrtemp->GetXaxis()->SetTitleOffset(1.2);
+      grErrtemp->GetXaxis()->CenterTitle(kTRUE);
+      grErrtemp->GetXaxis()->SetLabelSize(0.028);
+      grErrtemp->GetXaxis()->SetLabelOffset(0.015);
+      grErrtemp->GetYaxis()->SetTitleOffset(1.4);
+      grErrtemp->GetYaxis()->CenterTitle(kTRUE);
+      grErrtemp->GetYaxis()->SetLabelSize(0.028);
+      grErrtemp->GetYaxis()->SetLabelOffset(0.015);
       grErrtemp->Draw("AL");
       grErrtemp->SetLineColor(kGray+2);
 

@@ -3,6 +3,7 @@
 #include "adstanalyse.h"
 #include "adst_mva.h"
 #include "workstation.h"
+#include "colors.h"
 
 #include <iostream>
 #include <iomanip>
@@ -68,6 +69,8 @@ int CheckFormat(char *infile)
 
 void MethodList()
 {
+   Color::Modifier yellow(Color::FG_YELLOW);
+
    cout << endl << "Possible MVA methods to use:" << endl;
    cout << "- Cut optimisation:                                     Cuts, CutsD, CutsPCA, CutsGA, CutsSA" << endl
         << "- 1-dimensional likelihood:                             Likelihood, LikelihoodD, LikelihoodPCA, LikelihoodKDE, LikelihoodMIX" << endl
@@ -80,7 +83,7 @@ void MethodList()
         << "- Friedman's rulefit:                                   RuleFit" << endl
         << "- Default collection of methods:                        Default" << endl;
 
-   cout << "Select one of the above MVA methods for analysis (comma separate multiple methods): ";
+   cout << yellow << "Select one of the above MVA methods for analysis (comma separate multiple methods): ";
 }
 
 vector<string> AddVariables(TMVA::Factory *factory, vector<string> obs)
@@ -127,9 +130,6 @@ vector<string> AddVariables(TMVA::Factory *factory, vector<string> obs)
          factory->AddVariable(obs[i], 'F');
 
       if(obs[i] == "shfoot")
-         factory->AddVariable(obs[i], 'F');
-
-      if(obs[i] == "ldf1000")
          factory->AddVariable(obs[i], 'F');
 
       if(obs[i] == "shwsize")
@@ -335,6 +335,7 @@ int main(int argc, char **argv)
 
    // if the argument is -f, only one file is supplied (argtype = 0): But this file can have one or more events
    // if the argument is -t, the files are saved into a tar-ball (argtype = 1)
+   // if the argument is -m or -mg, the files are saved into the ADST format and will need MVA (argtype = 2)
    argtype = 0;
 
    int itemp;
@@ -383,8 +384,10 @@ int main(int argc, char **argv)
 	    i++;
 	 }
 	 // Multivariate analysis with TMVA
-	 else if(strcmp("-m",argv[i]) == 0)
+	 else if( (strcmp("-m",argv[i]) == 0) || (strcmp("-mg",argv[i]) == 0) )
 	 {
+	    if(strcmp("-mg",argv[i]) == 0)
+	       mvatool->graphical = true;
 	    argtype = 2;
 	    cout << "Rewriting files and preparing for the multivariate analysis." << endl;
 
@@ -606,6 +609,12 @@ int main(int argc, char **argv)
       delete mantool;
       delete aantool;
 
+      // Prepare colors for colored terminal output
+      Color::Modifier red(Color::FG_RED);
+      Color::Modifier cyan(Color::FG_CYAN);
+      Color::Modifier yellow(Color::FG_YELLOW);
+      Color::Modifier def(Color::FG_DEFAULT);
+
       // Prepare output file
       stemp = "tmva.root";
 
@@ -613,16 +622,16 @@ int main(int argc, char **argv)
       int writeAnalysis = -1;
       if(mvatool->inname.size() == 0)
       {
-         cout << "No input files supplied. Only running a MVA analysis on the existing tmva.root." << endl;
+         cout << cyan << "No input files supplied. Only running a MVA analysis on the existing tmva.root." << def << endl;
 	 writeAnalysis = 1;
       }
       else
       {
-         cout << "Write out observables to tmva.root (0) or just create a MVA analysis on the existing tmva.root (1)? ";
+         cout << yellow << "Write out observables to tmva.root (0) or just create a MVA analysis on the existing tmva.root (1)? " << def;
          cin >> writeAnalysis;
          while( (writeAnalysis != 0) && (writeAnalysis != 1) )
          {
-            cout << "Error: Please select a valid option." << endl << "Write out observables to tmva.root (0) or just create a MVA analysis on the existing tmva.root (1)? ";
+            cout << red << "Error: Please select a valid option. " << yellow << "Write out observables to tmva.root (0) or just create a MVA analysis on the existing tmva.root (1)? " << def;
             cin >> writeAnalysis;
          }
       }
@@ -644,7 +653,6 @@ int main(int argc, char **argv)
          back_tree = new TTree[mvatool->inname.size()];
          for(int i = 0; i < mvatool->inname.size(); i++)
             back_tree[i].SetNameTitle(("TreeB" + IntToStr(i+1)).c_str(), ("Background tree without events from file " + mvatool->inname[i]).c_str());
-//         back_tree = new TTree("TreeB", "Background tree with signal events subtracted from all events.");
          mvatool->all_tree = new TTree("TreeA", "Background tree with all events, including signal events.");
       
          // Start rewriting (for all input files)
@@ -662,7 +670,8 @@ int main(int argc, char **argv)
       }
 
       // Start performing the MVA analysis - TODO: make this working correctly
-      TFile *ofile = TFile::Open("tmva_output.root","RECREATE");
+      stemp = string(BASEDIR) + "/tmva_output.root";
+      TFile *ofile = TFile::Open(stemp.c_str(),"RECREATE");
       // Factory usage:
       // - user-defined job name, reappearing in names of weight files for training results ("TMVAClassification")
       // - pointer to an output file (ofile)
@@ -682,10 +691,10 @@ int main(int argc, char **argv)
       // - type of the variable (can be int = 'I' or float/double = 'F')
       // Additionally, can also have a title and the units for the variable: factory->AddVariable("name","title","unit",'F');
       string signalName = "default";
-      cout << "Observables to add in the multivariate analysis:" << endl
-           << "   xmax, x0, lambda, fdenergy, shfoot, ldf1000, shwsize, nrmu, curvature, risetime" << endl
-           << "   default (xmax,shfoot,ldf1000,nrmu,risetime)" << endl;
-      cout << "Select the observables to include in the MVA (comma separated): ";
+      cout << endl << cyan << "Observables to add in the multivariate analysis:" << endl
+           << "   xmax, x0, lambda, fdenergy, shfoot, shwsize, nrmu, curvature, risetime" << endl
+           << "   default (xmax,shfoot,shwsize,nrmu,risetime)" << endl << def;
+      cout << endl << yellow << "Select the observables to include in the MVA (comma separated): " << def;
       cin >> signalName;
       stringstream ss1(signalName);
       ss1.imbue(locale(locale(), new tokens()));
@@ -695,36 +704,25 @@ int main(int argc, char **argv)
 
       observables = AddVariables(factory, observables);
 
-/*      factory->AddVariable("xmax", 'F');
-//      factory->AddVariable("x0", 'F');
-//      factory->AddVariable("lambda", 'F');
-//      factory->AddVariable("fdenergy", 'F');
-      factory->AddVariable("shfoot", 'F');
-      factory->AddVariable("ldf1000", 'F');
-//      factory->AddVariable("ldfbeta", 'F');
-      factory->AddVariable("nrmu", 'F');
-//      factory->AddVariable("curvature", 'F');
-      factory->AddVariable("risetime", 'F');*/
-
       // Open up the input file and ask which signal tree we want to check
       int whichAnalysis = -1;
       signalName = "TreeS1";
 
-      TFile *ifile = TFile::Open(stemp.c_str());
+      TFile *ifile = TFile::Open((mvatool->outname).c_str());
       if((ifile->GetListOfKeys()->Contains("TreeA")) || (ifile->GetListOfKeys()->Contains("TreeB1")))
       {
-         cout << endl << "There are " << ((ifile->GetNkeys()-1)/2) << " signal trees available:" << endl;
+         cout << endl << cyan << "There are " << ((ifile->GetNkeys()-1)/2) << " signal trees available:" << endl;
          for(int i = 1; i <= ((ifile->GetNkeys())/2); i++)
          {
             signalName = "TreeS" + IntToStr(i);
             cout << "- " << i << ": " << ifile->GetKey(signalName.c_str())->GetTitle() << endl;
          }
-         cout << endl << "Select one to analyze (1-" << ((ifile->GetNkeys()-1)/2) << "): ";
+         cout << endl << yellow << "Select one to analyze (1-" << ((ifile->GetNkeys()-1)/2) << "): " << def;
          cin >> whichAnalysis;
 
          while( (whichAnalysis > ((ifile->GetNkeys())/2)) || (whichAnalysis < 1) )
          {
-            cout << "Error: Wrong selection." << endl << "There are " << ((ifile->GetNkeys()-1)/2) << " signal trees available. Select one to analyze (1-" << ((ifile->GetNkeys()-1)/2) << "): ";
+            cout << red << "Error: Wrong selection. " << yellow << "There are " << ((ifile->GetNkeys()-1)/2) << " signal trees available. Select one to analyze (1-" << ((ifile->GetNkeys()-1)/2) << "): " << def;
             cin >> whichAnalysis;
          }
 
@@ -733,27 +731,27 @@ int main(int argc, char **argv)
 
       // Getting signal and background trees for training and testing (can supply multiple trees)
       TTree *signal = (TTree*)ifile->Get(signalName.c_str());
-      cout << signalName << " selected as signal tree." << endl;
+      cout << cyan << signalName << " selected as signal tree." << endl << def;
       TTree *background;
 
-      cout << endl << "Take all events as background (0) or only inverse events (1)? ";
+      cout << endl << yellow << "Take all events as background (0) or only inverse events (1)? " << def;
       cin >> itemp;
       while( (itemp != 0) && (itemp != 1) )
       {
-         cout << "Error: Wrong selection." << endl << "Take all events as background (0) or only inverse events (1)? ";
+         cout << red << "Error: Wrong selection. " << yellow << "Take all events as background (0) or only inverse events (1)? " << def;
          cin >> itemp;
       }
 
       if(itemp == 0)
       {
          background = (TTree*)ifile->Get("TreeA");
-         cout << "TreeA selected as background tree." << endl;
+         cout << cyan << "TreeA selected as background tree." << endl << def;
       }
       else if(itemp == 1)
       {
          signalName = "TreeB" + IntToStr(whichAnalysis);
          background = (TTree*)ifile->Get(signalName.c_str());
-         cout << signalName << " selected as background tree." << endl;
+         cout << cyan << signalName << " selected as background tree." << endl << def;
       }
 
       // Add all the trees to the factory with overall weights for the complete sample
@@ -777,7 +775,9 @@ int main(int argc, char **argv)
       factory->PrepareTrainingAndTestTree("", "", "nTrain_Signal=0:nTrain_Background=0:SplitMode=Random:NormMode=NumEvents:!V");
 
       // Choose the MVA methods
+      cout << cyan;
       MethodList();
+      cout << def;
 
       cin >> signalName;
       stringstream ss2(signalName);
@@ -815,20 +815,27 @@ int main(int argc, char **argv)
       ofile->Close();
 
       // Open the GUI to check for best MVA
-      itemp = system("./tmvagui tmva_output.root");
-      cout << "Closing the GUI and continuing by applying the selected MVA to the data." << endl;
+      if(mvatool->graphical)
+         itemp = system("./tmvagui tmva_output.root");
+      cout << cyan << "Closing the GUI and continuing by applying the selected MVA to the data." << endl << def;
       
-      // Perform classification application
+      // Perform classification application (only apply it, if one method has been selected!)
+      if(methods.size() > 1)
+      {
+         cout << cyan << "More than one MVA method selected. To perform classification application, select only one." << endl << def;
+         return 0;
+      }
+
       string applymva;
       // Select the method to use
       if(methods.size() == 1)
          applymva = methods[0];
       else if(methods.size() > 1)
       {
-         cout << endl << "The following methods were trained and tested:" << endl;
+         cout << endl << cyan << "The following methods were trained and tested:" << endl;
          for(int i = 0; i < methods.size(); i++)
             cout << "   " << methods[i] << endl;
-         cout << "Select the method to be applied to the data (only one): " << endl;
+         cout << yellow << "Select the method to be applied to the data (only one): " << def;
          cin >> applymva;
       }
      
@@ -854,9 +861,6 @@ int main(int argc, char **argv)
          if(observables[i] == "shfoot")
             reader->AddVariable(observables[i], &obsvars[i]);
 
-         if(observables[i] == "ldf1000")
-            reader->AddVariable(observables[i], &obsvars[i]);
-
          if(observables[i] == "shwsize")
             reader->AddVariable(observables[i], &obsvars[i]);
 
@@ -871,22 +875,21 @@ int main(int argc, char **argv)
       }
 
       // Book the MVA with the produced weights file
-      signalName = "weights/TMVAClassification_" + applymva + ".weights.xml";
+      signalName = string(BASEDIR) + "/weights/TMVAClassification_" + applymva + ".weights.xml";
       string mvamethod = (string)(applymva + " method");
       reader->BookMVA(mvamethod, signalName);
 
 // GKM
-FILE *fpsig = fopen("root_mva/plots/gkm_simple_signal.txt","w");		// signal + wrong back after MVA cut
-FILE *fpback = fopen("root_mva/plots/gkm_simple_back.txt","w");			// back + wrong signal after MVA cut
-FILE *fpsigstart = fopen("root_mva/plots/gkm_simple_signal_start.txt","w");	// signal before MVA cut
-FILE *fpbackstart = fopen("root_mva/plots/gkm_simple_back_start.txt","w");	// back before MVA cut
-FILE *fpall = fopen("root_mva/plots/gkm_simple_all.txt","w");			// signal + back
+FILE *fpsig = fopen((string(BASEDIR) + "/root_mva/plots/gkm_simple_signal.txt").c_str(),"w");			// signal + wrong back after MVA cut
+FILE *fpback = fopen((string(BASEDIR) + "/root_mva/plots/gkm_simple_back.txt").c_str(),"w");			// back + wrong signal after MVA cut
+FILE *fpsigstart = fopen((string(BASEDIR) + "/root_mva/plots/gkm_simple_signal_start.txt").c_str(),"w");	// signal before MVA cut
+FILE *fpbackstart = fopen((string(BASEDIR) + "/root_mva/plots/gkm_simple_back_start.txt").c_str(),"w");		// back before MVA cut
+FILE *fpall = fopen((string(BASEDIR) + "/root_mva/plots/gkm_simple_all.txt").c_str(),"w");			// signal + back
 int backval = 0, sigval = 0;
 // GKM
 
       // Open the input file and prepare the TTree
-      stemp = "tmva.root";
-      ifile = TFile::Open(stemp.c_str());
+      ifile = TFile::Open((mvatool->outname).c_str());
 
       signalName = "TreeS" + IntToStr(whichAnalysis);
 
@@ -896,7 +899,7 @@ int backval = 0, sigval = 0;
          signalapp->SetBranchAddress((observables[i]).c_str(), &obsvars[i]);
 
       double cutmva;
-      cout << "Select the cut to be performed on the MVA variable: ";
+      cout << yellow << "Select the cut to be performed on the MVA variable: " << def;
       cin >> cutmva;
 
       for(int ievt=0; ievt < signalapp->GetEntries(); ievt++)
@@ -932,10 +935,10 @@ int backval = 0, sigval = 0;
       ifile->Close();
 
 // GKM
-std::cout << "Signal TTree: There were " << sigval << " signal events and " << backval << " background events" << std::endl;
+cout << cyan << "Signal TTree: There were " << sigval << " signal events and " << backval << " background events" << endl << def;
 // GKM
 
-      ifile = TFile::Open(stemp.c_str());
+      ifile = TFile::Open((mvatool->outname).c_str());
 
       signalName = "TreeB" + IntToStr(whichAnalysis);
 
@@ -952,7 +955,6 @@ std::cout << "Signal TTree: There were " << sigval << " signal events and " << b
 
          for(int i = 0; i < observables.size(); i++)
 	 {
-//	    cout << obsvars[i] << "\t";
 	    fprintf(fpall, "%lf\t", obsvars[i]);
 	    fprintf(fpbackstart, "%lf\t", obsvars[i]);
 
@@ -961,7 +963,6 @@ std::cout << "Signal TTree: There were " << sigval << " signal events and " << b
             else
 	       fprintf(fpback, "%lf\t", obsvars[i]);
 	 }
-//	 cout << reader->EvaluateMVA(mvamethod) << "\n";
 	 fprintf(fpall, "%lf\n", reader->EvaluateMVA(mvamethod));
 	 fprintf(fpbackstart, "%lf\n", reader->EvaluateMVA(mvamethod));
 
@@ -979,13 +980,16 @@ std::cout << "Signal TTree: There were " << sigval << " signal events and " << b
       ifile->Close();
 
 // GKM
-std::cout << "Background TTree: There were " << sigval << " signal events and " << backval << " background events" << std::endl;
+cout << cyan << "Background TTree: There were " << sigval << " signal events and " << backval << " background events" << endl << def;
 fclose(fpsig);
 fclose(fpback);
 fclose(fpsigstart);
 fclose(fpbackstart);
 fclose(fpall);
 // GKM
+
+      cout << def << endl;
+      mvatool->CreateMVAPlots(cutmva, observables);
 
       delete reader;
       delete mvatool;

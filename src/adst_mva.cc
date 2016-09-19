@@ -17,7 +17,6 @@ Observables::Observables()
    shfoot = -1;
    fdenergy = -1;
    nrmu = -1;
-   ldf1000 = -1;
    shwsize = -1;
    ldfbeta = -1;
    curvature = -1;
@@ -48,6 +47,9 @@ AdstMva::AdstMva()
 
    shfootlimit = 0.1;
 
+   goodrec = true;
+   graphical = false;
+
 /*   xmaxlimit = 0;
    slantset = -1;
    shfootlimit = 0;
@@ -75,7 +77,7 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
 
    cout << "# New input file (" << inname[innr] << ") ---------------------------------" << endl;
 
-   // Prepare signal and background trees
+   // Prepare signal and background trees (all = complete set of events, back = only events that are not signal)
    stemp = "TreeS" + IntToStr(innr+1);
    stemp2 = "Signal tree from file " + inname[innr] + ".";
    
@@ -85,7 +87,6 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
    sig_tree->Branch("lambda", &(sig.lambda), "lambda/F");
    sig_tree->Branch("fdenergy", &(sig.fdenergy), "fdenergy/F");
    sig_tree->Branch("shfoot", &(sig.shfoot), "shfoot/F");
-   sig_tree->Branch("ldf1000", &(sig.ldf1000), "ldf1000/F");
    sig_tree->Branch("shwsize", &(sig.shwsize), "shwsize/F");
    sig_tree->Branch("ldfbeta", &(sig.ldfbeta), "ldfbeta/F");
    sig_tree->Branch("curvature", &(sig.curvature), "curvature/F");
@@ -97,7 +98,6 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
    all_tree->Branch("lambda", &(back.lambda), "lambda/F");
    all_tree->Branch("fdenergy", &(back.fdenergy), "fdenergy/F");
    all_tree->Branch("shfoot", &(back.shfoot), "shfoot/F");
-   all_tree->Branch("ldf1000", &(back.ldf1000), "ldf1000/F");
    all_tree->Branch("shwsize", &(back.shwsize), "shwsize/F");
    all_tree->Branch("ldfbeta", &(back.ldfbeta), "ldfbeta/F");
    all_tree->Branch("curvature", &(back.curvature), "curvature/F");
@@ -111,7 +111,6 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
       back_tree[i].Branch("lambda", &(back.lambda), "lambda/F");
       back_tree[i].Branch("fdenergy", &(back.fdenergy), "fdenergy/F");
       back_tree[i].Branch("shfoot", &(back.shfoot), "shfoot/F");
-      back_tree[i].Branch("ldf1000", &(back.ldf1000), "ldf1000/F");
       back_tree[i].Branch("shwsize", &(back.shwsize), "shwsize/F");
       back_tree[i].Branch("ldfbeta", &(back.ldfbeta), "ldfbeta/F");
       back_tree[i].Branch("curvature", &(back.curvature), "curvature/F");
@@ -129,6 +128,9 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
    // Go over all events in the ADST file and write them out to the output file
    for(int j = 0; j < fFile->GetNEvents(); j++)
    {
+      // goodrec variable determines if FD or SD reconstructions failed - not using results from those
+      goodrec = true;
+
       cout << "# New event (" << j+1 << ") ---------------------------------" << endl;
       fFile->ReadEvent(j);
 
@@ -138,7 +140,10 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
       // Go over the FD eye events
       cout << "Number of eyes: " << fRecEvent->GetNEyes() << endl;
       if(fRecEvent->GetNEyes() == 0)
+      {
          cout << "Error! No reconstructed eyes for this event." << endl;
+	 goodrec = false;
+      }
       else
       {
          vector<FDEvent> fdevt = fRecEvent->GetFDEvents();
@@ -151,7 +156,10 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
 
          itemp = GetEyeLongestTrack();
 	 if( (itemp == -1) || (acteyes[itemp].GetEnergy() == 0) )
+	 {
 	    cout << "Error! The selected eye has no valid reconstructions." << endl;
+	    goodrec = false;
+	 }
 	 else
 	 {
             sig.xmax = acteyes[itemp].GetXmax();
@@ -176,29 +184,48 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
 	         << "\t- Lambda = " << sig.lambda << endl
 		 << "\t- FD Energy = " << sig.fdenergy << endl
 		 << "\t- Shower foot = " << sig.shfoot << endl;
-
-//            sig_tree->Fill();
-//	    all_tree->Fill();
 	 }
       }
 
       // Go over the SD tank events
       *sdrecshw = fRecEvent->GetSDEvent().GetSdRecShower();
-      sig.ldf1000 = sdrecshw->GetS1000();
+
+      if(!(fRecEvent->GetSDEvent().HasTriggeredStations()))
+      {
+         cout << "Error! No triggered stations in SD reconstruction." << endl;
+         goodrec = false;
+      }
+
+      if(!(fRecEvent->GetSDEvent().HasStations()))
+      {
+         cout << "Error! No stations in SD reconstruction." << endl;
+         goodrec = false;
+      }
+
+      if(!(fRecEvent->GetSDEvent().HasVEMTraces()))
+      {
+         cout << "Error! No VEM traces in SD tanks." << endl;
+         goodrec = false;
+      }
+
       sig.shwsize = sdrecshw->GetShowerSize();
       sig.ldfbeta = sdrecshw->GetBeta();
       sig.curvature = sdrecshw->GetCurvature();
       sig.risetime = sdrecshw->GetRiseTimeResults().GetRiseTime1000();
-      back.ldf1000 = sdrecshw->GetS1000();
       back.shwsize = sdrecshw->GetShowerSize();
       back.ldfbeta = sdrecshw->GetBeta();
       back.curvature = sdrecshw->GetCurvature();
       back.risetime = sdrecshw->GetRiseTimeResults().GetRiseTime1000();
-      cout << "\t- LDF at 1000m = " << sig.ldf1000 << endl
-           << "\t- Shower size (replacement for S1000?) = " << sig.shwsize << endl
+      cout << "\t- Shower size (replacement for S1000) = " << sig.shwsize << endl
            << "\t- LDF Beta = " << sig.ldfbeta << endl
            << "\t- Curvature R = " << sig.curvature << endl
            << "\t- Risetime at 1000m = " << sig.risetime << endl;
+
+      if(sig.risetime == -1) // TODO: For some reason, some of the Risetime results are -1 -> check why and maybe try to calculate them from actual VEM traces
+      {
+         cout << "Error! Risetime not calculated. " << sdrecshw->GetRiseTimeResults().GetRiseTime1000() << endl;
+	 goodrec = false;
+      }
 
       // Go over the simulated events (Muon number at ground level)
       *genshw = fRecEvent->GetGenShower();
@@ -206,13 +233,16 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
       back.nrmu = genshw->GetMuonNumber();
       cout << "\t- Nr. of muons = " << sig.nrmu << endl;
 
-      sig_tree->Fill();
-      all_tree->Fill();
-
-      for(int i = 0; i < inname.size(); i++)
+      if(goodrec)
       {
-         if(i != innr)
-	    back_tree[i].Fill();
+         sig_tree->Fill();
+         all_tree->Fill();
+
+         for(int i = 0; i < inname.size(); i++)
+         {
+            if(i != innr)
+               back_tree[i].Fill();
+         }
       }
    }
 
@@ -248,7 +278,6 @@ int AdstMva::GetShowerFoot(int longestEye, vector<FDEvent> fdevt)
    double *x, *xerr;
    int *itemp;
    double *dtemp1, *dtemp2, *dtemp3;
-//   double *outerr;
 
    x = new double;
    xerr = new double;
@@ -256,7 +285,6 @@ int AdstMva::GetShowerFoot(int longestEye, vector<FDEvent> fdevt)
    dtemp1 = new double;
    dtemp2 = new double;
    dtemp3 = new double;
-//   outerr = new double[2];
 
    *x = 0;
    *xerr = 0;
@@ -352,10 +380,6 @@ int AdstMva::GetShowerFoot(int longestEye, vector<FDEvent> fdevt)
 //	 cout << "Izr.2c: x = " << *x << ", y = " << *dtemp1 << ", x+Dx = " << *dtemp2 << ", x-Dx = " << *dtemp3 << ", Dx+ = " << (*dtemp2)-(*x) << ", Dx- = " << (*x)-(*dtemp3) << endl;
 
          shfoot = *x;
-
-//         *out += *x;//xfoot[i-1];
-//         outerr[0] += (*x)-(*dtemp3);
-//         outerr[1] += (*dtemp2)-(*x);
       }
    }
 
@@ -365,7 +389,443 @@ int AdstMva::GetShowerFoot(int longestEye, vector<FDEvent> fdevt)
    delete dtemp1;
    delete dtemp2;
    delete dtemp3;
-//   delete[] outerr;
 
    return 0;
+}
+
+void AdstMva::CreateMVAPlots(double cut, vector<string> obs)
+{
+   // Prepare colors for signal, background and MVA cut line
+   static Int_t c_AllLine     = TColor::GetColor("#0000ee");
+   static Int_t c_AllFill     = TColor::GetColor("#7d99d1");
+   static Int_t c_SignalLine  = TColor::GetColor("#ff0000");
+   static Int_t c_SignalFill  = TColor::GetColor("#ff0000");
+   static Int_t c_MvaCut      = TColor::GetColor("#ffff66");
+
+   // All additional things we need for plotting
+   TLegend *legend;
+   TNtuple *sigtuple;
+   TNtuple *backtuple;
+   TLine *line;
+   TH1F *basehist;
+
+   // Variables for setting range and fill style of the legend
+   double xrangeset = 1.1;
+   double yrangeset = 1.15;
+   int legendFill = 1001;
+   double xhistmax[2];
+   double yhistmax[2];
+
+   string obslist = "";
+
+   gStyle->SetOptStat(0);
+
+   TCanvas *c1 = new TCanvas("c1","",1200,900);
+   c1->SetGrid();
+   c1->SetRightMargin(0.05);
+   c1->SetTopMargin(0.05);
+
+   // Prepare a semicolon separated list of observables to be used for plotting
+   if(obs.size() <= 0)
+   {
+      cout << "AdstMva::CreateMVAPlots(): Error! Incorrect number of observables." << endl;
+      return;
+   }
+
+   for(int i = 0; i < obs.size(); i++)
+      obslist = obslist + obs[i] + ":";
+   obslist = obslist + "MVA";
+
+   // Plotting Signal events before MVA and Signal events + false background events after MVA
+   sigtuple = new TNtuple("sig","signal",obslist.c_str());
+   backtuple = new TNtuple("back","back",obslist.c_str());
+
+   backtuple->ReadFile((string(BASEDIR) + "/root_mva/plots/gkm_simple_signal_start.txt").c_str());	// signal before MVA cut
+   sigtuple->ReadFile((string(BASEDIR) + "/root_mva/plots/gkm_simple_signal.txt").c_str());		// signal + wrong back after MVA cut
+   sigtuple->SetLineColor(c_SignalLine);
+   sigtuple->SetLineWidth(2);
+   sigtuple->SetFillColor(c_SignalFill);
+   sigtuple->SetFillStyle(3554);
+   backtuple->SetLineColor(c_AllLine);
+   backtuple->SetLineWidth(2);
+   backtuple->SetFillColor(c_AllFill);
+   backtuple->SetFillStyle(1001);
+
+   for(int i = 0; i <= obs.size(); i++)
+   {
+      basehist = new TH1F("t1","",100,-50.,50.);
+      if(i == obs.size())
+      {
+         // Setup X range
+         SetPlotRange(sigtuple, backtuple, basehist, xhistmax, xrangeset, "MVA", 'x');
+         backtuple->Draw("MVA","","SAME");
+         sigtuple->Draw("MVA","","SAME");
+      }
+      else
+      {
+         // Setup X range
+         SetPlotRange(sigtuple, backtuple, basehist, xhistmax, xrangeset, obs[i], 'x');
+         backtuple->Draw(obs[i].c_str(),"","SAME");
+         sigtuple->Draw(obs[i].c_str(),"","SAME");
+      }
+
+      legend = new TLegend(gPad->GetLeftMargin(), 1-gPad->GetTopMargin()-.08, gPad->GetLeftMargin()+.30, 1-gPad->GetTopMargin());
+      legend->SetFillStyle(legendFill);
+      legend->SetFillColor(c_MvaCut);
+      legend->AddEntry(backtuple,"Signal before MVA cut","f");
+      legend->AddEntry(sigtuple,"Signal + false signal after MVA cut","f");
+      legend->SetBorderSize(1);
+      legend->SetMargin(0.3);
+      if(i < obs.size())
+         legend->Draw("same");
+
+      gPad->Update();
+
+      if(i < obs.size())
+      {
+         // Setup Y range
+         SetPlotRange(sigtuple, backtuple, basehist, yhistmax, yrangeset, obs[i], 'y');
+         SetupAxis(basehist, obs[i]);
+
+         c1->SaveAs((string(BASEDIR) + "/results/mva_analysis_signal_" + obs[i] + ".pdf").c_str());
+//         c1->SaveAs((string(BASEDIR) + "/results/mva_analysis_signal_" + obs[i] + ".C").c_str());
+      }
+      else
+      {
+         // Setup Y range
+         SetPlotRange(sigtuple, backtuple, basehist, yhistmax, yrangeset, "MVA", 'y');
+
+         line = new TLine(cut, yhistmax[0], cut, yhistmax[1]);
+         line->SetLineWidth(2);
+         line->SetLineStyle(7);
+         line->SetLineColor(kOrange+2);
+         line->Draw("same");
+
+         legend->Draw("same");
+
+         basehist->GetXaxis()->SetRange(xhistmax[0], xhistmax[1]);
+         basehist->GetXaxis()->SetRangeUser(xhistmax[0], xhistmax[1]);
+         basehist->GetXaxis()->SetLimits(xhistmax[0], xhistmax[1]);
+
+	 SetupAxis(basehist, "MVA");
+
+         gPad->Update();
+
+         c1->SaveAs((string(BASEDIR) + "/results/mva_analysis_signal_MVA.pdf").c_str());
+//         c1->SaveAs((string(BASEDIR) + "/results/mva_analysis_signal_MVA.C").c_str());
+      }
+   }
+
+   delete sigtuple;
+   delete backtuple;
+   delete basehist;
+
+   // Plotting All events before MVA and Signal events + false background events after MVA
+   sigtuple = new TNtuple("sig","signal",obslist.c_str());
+   backtuple = new TNtuple("all","all",obslist.c_str());
+
+   backtuple->ReadFile((string(BASEDIR) + "/root_mva/plots/gkm_simple_all.txt").c_str());		// all events before MVA cut
+   sigtuple->ReadFile((string(BASEDIR) + "/root_mva/plots/gkm_simple_signal.txt").c_str());		// signal + wrong back after MVA cut
+   sigtuple->SetLineColor(c_SignalLine);
+   sigtuple->SetLineWidth(2);
+   sigtuple->SetFillColor(c_SignalFill);
+   sigtuple->SetFillStyle(3554);
+   backtuple->SetLineColor(c_AllLine);
+   backtuple->SetLineWidth(2);
+   backtuple->SetFillColor(c_AllFill);
+   backtuple->SetFillStyle(1001);
+
+   for(int i = 0; i <= obs.size(); i++)
+   {
+      basehist = new TH1F("t1","",100,-50.,50.);
+      if(i == obs.size())
+      {
+         // Setup X range
+         SetPlotRange(sigtuple, backtuple, basehist, xhistmax, xrangeset, "MVA", 'x');
+         backtuple->Draw("MVA","","SAME");
+         sigtuple->Draw("MVA","","SAME");
+      }
+      else
+      {
+         // Setup X range
+         SetPlotRange(sigtuple, backtuple, basehist, xhistmax, xrangeset, obs[i], 'x');
+         backtuple->Draw(obs[i].c_str(),"","SAME");
+         sigtuple->Draw(obs[i].c_str(),"","SAME");
+      }
+
+      legend = new TLegend(gPad->GetLeftMargin(), 1-gPad->GetTopMargin()-.08, gPad->GetLeftMargin()+.30, 1-gPad->GetTopMargin());
+      legend->SetFillStyle(legendFill);
+      legend->SetFillColor(c_MvaCut);
+      legend->AddEntry(backtuple,"All events before MVA cut","f");
+      legend->AddEntry(sigtuple,"Signal + false signal after MVA cut","f");
+      legend->SetBorderSize(1);
+      legend->SetMargin(0.3);
+      if(i < obs.size())
+         legend->Draw("same");
+
+      gPad->Update();
+
+      if(i < obs.size())
+      {
+         // Setup Y range
+         SetPlotRange(sigtuple, backtuple, basehist, yhistmax, yrangeset, obs[i], 'y');
+         SetupAxis(basehist, obs[i]);
+
+         c1->SaveAs((string(BASEDIR) + "/results/mva_analysis_all_" + obs[i] + ".pdf").c_str());
+      }
+      else
+      {
+         // Setup Y range
+         SetPlotRange(sigtuple, backtuple, basehist, yhistmax, yrangeset, "MVA", 'y');
+
+         line = new TLine(cut, yhistmax[0], cut, yhistmax[1]);
+         line->SetLineWidth(2);
+         line->SetLineStyle(7);
+         line->SetLineColor(kOrange+2);
+         line->Draw("same");
+
+         legend->Draw("same");
+
+         basehist->GetXaxis()->SetRange(xhistmax[0], xhistmax[1]);
+         basehist->GetXaxis()->SetRangeUser(xhistmax[0], xhistmax[1]);
+         basehist->GetXaxis()->SetLimits(xhistmax[0], xhistmax[1]);
+
+	 SetupAxis(basehist, "MVA");
+
+         gPad->Update();
+
+         c1->SaveAs((string(BASEDIR) + "/results/mva_analysis_all_MVA.pdf").c_str());
+      }
+   }
+
+   delete sigtuple;
+   delete backtuple;
+   delete basehist;
+
+   // Plotting only starting signal and background before MVA
+   sigtuple = new TNtuple("sig","signal",obslist.c_str());
+   backtuple = new TNtuple("back","back",obslist.c_str());
+
+   backtuple->ReadFile((string(BASEDIR) + "/root_mva/plots/gkm_simple_back_start.txt").c_str());		// back before MVA cut
+   sigtuple->ReadFile((string(BASEDIR) + "/root_mva/plots/gkm_simple_signal_start.txt").c_str());		// signal before MVA cut
+   sigtuple->SetLineColor(c_SignalLine);
+   sigtuple->SetLineWidth(2);
+   sigtuple->SetFillColor(c_SignalFill);
+   sigtuple->SetFillStyle(3554);
+   backtuple->SetLineColor(c_AllLine);
+   backtuple->SetLineWidth(2);
+   backtuple->SetFillColor(c_AllFill);
+   backtuple->SetFillStyle(1001);
+
+   for(int i = 0; i <= obs.size(); i++)
+   {
+      basehist = new TH1F("t1","",100,-50.,50.);
+      if(i == obs.size())
+      {
+         // Setup X range
+         SetPlotRange(sigtuple, backtuple, basehist, xhistmax, xrangeset, "MVA", 'x');
+         backtuple->Draw("MVA","","SAME");
+         sigtuple->Draw("MVA","","SAME");
+      }
+      else
+      {
+         // Setup X range
+         SetPlotRange(sigtuple, backtuple, basehist, xhistmax, xrangeset, obs[i], 'x');
+         backtuple->Draw(obs[i].c_str(),"","SAME");
+         sigtuple->Draw(obs[i].c_str(),"","SAME");
+      }
+
+      legend = new TLegend(gPad->GetLeftMargin(), 1-gPad->GetTopMargin()-.08, gPad->GetLeftMargin()+.30, 1-gPad->GetTopMargin());
+      legend->SetFillStyle(legendFill);
+      legend->SetFillColor(c_MvaCut);
+      legend->AddEntry(backtuple,"Background before MVA cut","f");
+      legend->AddEntry(sigtuple,"Signal before MVA cut","f");
+      legend->SetBorderSize(1);
+      legend->SetMargin(0.3);
+      if(i < obs.size())
+         legend->Draw("same");
+
+      gPad->Update();
+
+      if(i < obs.size())
+      {
+         // Setup Y range
+         SetPlotRange(sigtuple, backtuple, basehist, yhistmax, yrangeset, obs[i], 'y');
+         SetupAxis(basehist, obs[i]);
+
+         c1->SaveAs((string(BASEDIR) + "/results/mva_analysis_back_" + obs[i] + ".pdf").c_str());
+      }
+      else
+      {
+         // Setup Y range
+         SetPlotRange(sigtuple, backtuple, basehist, yhistmax, yrangeset, "MVA", 'y');
+
+         line = new TLine(cut, yhistmax[0], cut, yhistmax[1]);
+         line->SetLineWidth(2);
+         line->SetLineStyle(7);
+         line->SetLineColor(kOrange+2);
+         line->Draw("same");
+
+         legend->Draw("same");
+
+         basehist->GetXaxis()->SetRange(xhistmax[0], xhistmax[1]);
+         basehist->GetXaxis()->SetRangeUser(xhistmax[0], xhistmax[1]);
+         basehist->GetXaxis()->SetLimits(xhistmax[0], xhistmax[1]);
+
+	 SetupAxis(basehist, "MVA");
+
+         gPad->Update();
+
+         c1->SaveAs((string(BASEDIR) + "/results/mva_analysis_back_MVA.pdf").c_str());
+      }
+   }
+
+   delete sigtuple;
+   delete backtuple;
+   delete basehist;
+}
+
+//void AdstMva::SetPlotRange(TH1F *hist1, TH1F *hist2, double *xval, double *yval, double xrangeboost, double yrangeboost)
+void AdstMva::SetPlotRange(TNtuple *sig, TNtuple *back, TH1F *base, double *val, double rangeboost, string obs, char xory)
+{
+   double *dtemp;
+
+   if(xory == 'x')
+   {
+      dtemp = new double[2];
+
+      if(back->GetMinimum(obs.c_str()) < sig->GetMinimum(obs.c_str()))
+         val[0] = back->GetMinimum(obs.c_str());
+      else
+         val[0] = sig->GetMinimum(obs.c_str());
+
+      if(back->GetMaximum(obs.c_str()) > sig->GetMaximum(obs.c_str()))
+         val[1] = back->GetMaximum(obs.c_str());
+      else
+         val[1] = sig->GetMaximum(obs.c_str());
+
+      cout << obs << ": start X min = " << val[0] << ", start X max = " << val[1] << endl;
+      base->SetBit(TH1::kCanRebin);
+      for(int i = 0; i <= base->GetNbinsX(); i++)
+         base->SetBinContent(i, 0);
+      base->SetLineColor(1);
+      base->SetLineWidth(1);
+      base->Draw();
+
+      gPad->Update();
+
+      // Set a small empty space on each side of the X axis
+      if(val[0] < 0)
+         dtemp[0] = val[0]*rangeboost;
+      else if(val[0] == 0)
+         dtemp[0] = val[1] - val[1]*rangeboost;
+      else
+         dtemp[0] = val[0]*(2.-rangeboost);
+
+      if(val[1] < 0)
+         dtemp[1] = val[1]*(2.-rangeboost);
+      else if(val[1] == 0)
+         dtemp[1] = val[0] - val[0]*rangeboost;
+      else
+         dtemp[1] = val[1]*rangeboost;
+
+      cout << obs << ": boost X min = " << dtemp[0] << " (diff = " << TMath::Abs(dtemp[0] - val[0]) << "), boost X max = " << dtemp[1] << " (diff = " << TMath::Abs(dtemp[1] - val[1]) << ")" << endl;
+/*
+      // Check if one of the empty spaces is bigger than the other - apply the same value to both
+      if( TMath::Abs(dtemp[0] - val[0]) > TMath::Abs(dtemp[1] - val[1]) )
+      {
+         val[0] = val[0] - TMath::Abs(dtemp[0] - val[0]);
+         val[1] = val[1] + TMath::Abs(dtemp[0] - val[0]);
+      }
+      else if( TMath::Abs(dtemp[0] - val[0]) < TMath::Abs(dtemp[1] - val[1]) )
+      {
+         val[0] = val[0] - TMath::Abs(dtemp[1] - val[1]);
+         val[1] = val[1] + TMath::Abs(dtemp[1] - val[1]);
+      }
+      else
+      {
+*/         val[0] = dtemp[0];
+         val[1] = dtemp[1];
+//      }
+
+      cout << obs << ": after X min = " << val[0] << ", after X max = " << val[1] << endl;
+
+      // Set ranges for the histogram
+      base->GetXaxis()->SetRange(val[0], val[1]);
+      base->GetXaxis()->SetRangeUser(val[0], val[1]);
+      base->GetXaxis()->SetLimits(val[0], val[1]);
+
+      gPad->Update();
+
+      delete[] dtemp;
+   }
+   else if(xory == 'y')
+   {
+      TH1F *hist1 = (TH1F*)back->GetHistogram();
+      TH1F *hist2 = (TH1F*)sig->GetHistogram();
+
+      // Get Y axis minimum
+      val[0] = 0;
+      // Get Y axis maximum
+      if(hist1->GetMaximum() < hist2->GetMaximum())
+         val[1] = hist2->GetMaximum();
+      else
+         val[1] = hist1->GetMaximum();
+
+      cout << obs << ": before Y min = " << val[0] << ", before Y max = " << val[1] << endl;
+
+      // Set a small empty space on the top of the Y axis
+      val[1] = val[1]*rangeboost;
+
+      cout << obs << ": after Y min = " << val[0] << ", after Y max = " << val[1] << endl;
+
+      // Set ranges for the histogram
+      base->GetYaxis()->SetRange(val[0], val[1]);
+      base->GetYaxis()->SetRangeUser(val[0], val[1]);
+      base->GetYaxis()->SetLimits(val[0], val[1]);
+
+      gPad->Update();
+   }
+}
+
+void AdstMva::SetupAxis(TH1F *hist, string obs)
+{
+   string obsdesc;
+   // Determine which observable we have
+   if(obs == "xmax")
+      obsdesc = "X_{max} (g/cm^{2})";
+   else if(obs == "x0")
+      obsdesc = "GH parameter X_{0} (g/cm^{2})";
+   else if(obs == "lambda")
+      obsdesc = "GH parameter lambda (g/cm^{2})";
+   else if(obs == "fdenergy")
+      obsdesc = "FD reconstructed energy (eV)";
+   else if(obs == "shfoot")
+      obsdesc = "Shower foot (g/cm^{2})";
+   else if(obs == "shwsize")
+      obsdesc = "SD signal at 1000m from axis (VEM)";
+   else if(obs == "nrmu")
+      obsdesc = "Number of muons at ground level";
+   else if(obs == "curvature")
+      obsdesc = "Curvature of shower plane (m^{-1})";
+   else if(obs == "risetime")
+      obsdesc = "SD tank risetime (ns)";
+   else if(obs == "MVA")
+      obsdesc = "MVA observable";
+   else
+      return;
+
+   hist->GetYaxis()->SetTitle("Number of events");
+   hist->GetXaxis()->SetTitle(obsdesc.c_str());
+
+   hist->GetXaxis()->SetTitleOffset(1.2);
+   hist->GetXaxis()->CenterTitle(kTRUE);
+   hist->GetXaxis()->SetLabelSize(0.028);
+   hist->GetXaxis()->SetLabelOffset(0.015);
+   hist->GetYaxis()->SetTitleOffset(1.3);
+   hist->GetYaxis()->CenterTitle(kTRUE);
+   hist->GetYaxis()->SetLabelSize(0.028);
+   hist->GetYaxis()->SetLabelOffset(0.015);
+
+   hist->SetTitle("");
 }
