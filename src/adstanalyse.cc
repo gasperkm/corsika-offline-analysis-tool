@@ -260,6 +260,10 @@ string AdstAnalyseTool::GetActiveTanks()
    cout << "# Entering function AdstAnalyseTool::GetActiveTanks()..." << endl;
    string stemp;
 
+/*// TESTING
+vector<UShort_t> hightrace;
+// TESTING*/
+
    fFile->ReadEvent(readevent);
 
    SDEvent &sdevt = fRecEvent->GetSDEvent();
@@ -289,6 +293,15 @@ string AdstAnalyseTool::GetActiveTanks()
                stemp = IntToStr(acttanks[i].GetId());
             else
                stemp = stemp + ", " + IntToStr(acttanks[i].GetId());
+
+/*	    // TESTING
+            hightrace = acttanks[i].GetHighGainTrace(1);
+	    cout << "Size of high gain trace = " << hightrace.size() << endl;
+	    for(int j = 0; j < hightrace.size(); j++)
+	    {
+	       cout << "High gain trace " << j << " = " << hightrace[j] << endl;
+	    }
+	    // TESTING*/
 	 }
       }
    }

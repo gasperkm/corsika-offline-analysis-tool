@@ -15,7 +15,7 @@ For program usage, run "make usage". Each of the subprograms has a separate func
 # Skipping standard input values
 To make things quicker, it is possible to use a standard input file instead of writing into the terminal every time. However, all needed stdin values need to be supplied, otherwise the program will most likely fail or go into an endless loop.
 
-#--- Example 1 -------------------------------------------------------------------
+#--- Example 1 -----------------------------------------------------
 Example: ./analysis_tool -m < infile
 Input file (infile):
 xmax,shfoot,shwsize,risetime
@@ -30,9 +30,9 @@ The above values are prompted by:
 3. Take all events as background (0) or only inverse events (1)?
 4. Select one of the above MVA methods for analysis (comma separate multiple methods):
 5. Select the cut to be performed on the MVA variable:
-#---------------------------------------------------------------------------------
+#-------------------------------------------------------------------
 
-#--- Example 2 -------------------------------------------------------------------
+#--- Example 2 -----------------------------------------------------
 Example: ./analysis_tool -m ADST_inputfile1.root ADST_inputfile2.root < infile
 Input file (infile):
 0
@@ -49,9 +49,9 @@ The above values are prompted by:
 4. Take all events as background (0) or only inverse events (1)?
 5. Select one of the above MVA methods for analysis (comma separate multiple methods):
 6. Select the cut to be performed on the MVA variable:
-#---------------------------------------------------------------------------------
+#-------------------------------------------------------------------
 
-#--- Example 3 -------------------------------------------------------------------
+#--- Example 3 -----------------------------------------------------
 Example: ./analysis_tool -f ADST_inputfile.root < infile
 Input file (infile):
 0
@@ -66,4 +66,4 @@ The above values are prompted by:
 3. Enter maximal Xmax error to be used (set to 0, to select all showers):
 4. Use vertical (0) or slant depth (1):
 5. Enter maximal distance of SD tank from shower core (set to 0, to select all tanks):
-#---------------------------------------------------------------------------------
+#-------------------------------------------------------------------

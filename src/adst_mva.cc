@@ -154,6 +154,21 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
 
          cout << "Number of active eyes: " << acteyes.size() << endl;
 
+         for(int i = 0; i < fdevt.size(); i++)
+	 {
+	    if(!fdevt[i].IsHybridEvent())
+	    {
+	       cout << "Error! Eye " << i << " not a hybrid event." << endl;
+	       goodrec = false;
+	    }
+	    else
+	    {
+	       cout << "Eye " << i << " is a hybrid event." << endl;
+	       goodrec = true;
+	       break;
+	    }
+	 }
+
          itemp = GetEyeLongestTrack();
 	 if( (itemp == -1) || (acteyes[itemp].GetEnergy() == 0) )
 	 {
