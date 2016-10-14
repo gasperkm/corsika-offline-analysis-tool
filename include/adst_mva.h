@@ -63,6 +63,7 @@ public:
 
    // Rewrite
    void RewriteObservables(int innr, Observables sig, Observables back, TTree *back_tree);
+   void PrepareOtherTrees(int nr, int sig);
    void CreateMVAPlots(double cut, std::vector<std::string> obs);
 //   void SetPlotRange(TH1F *hist1, TH1F *hist2, double *xval, double *yval, double xrangeboost, double yrangeboost);
    void SetPlotRange(TNtuple *sig, TNtuple *back, TH1F *base, double *val, double rangeboost, std::string obs, char xory);
@@ -74,6 +75,9 @@ public:
    DetectorGeometry *fDetGeo;
 
    GenShower *genshw;
+#ifdef OFFLINENEW
+   UnivRecShower *unishw;
+#endif
    SdRecShower *sdrecshw;
 
    // All input filenames that will be used for the MVA

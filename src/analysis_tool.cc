@@ -4,6 +4,7 @@
 #include "adst_mva.h"
 #include "workstation.h"
 #include "colors.h"
+#include "combine.h"
 
 #include <iostream>
 #include <iomanip>
@@ -16,7 +17,7 @@
 
 using namespace std;
 
-// Int to string conversion
+/*// Int to string conversion
 string IntToStr(int nr)
 {
    stringstream ss;
@@ -30,7 +31,7 @@ string DblToStr(double nr)
    stringstream ss;
    ss << nr;
    return ss.str();
-}
+}*/
 
 // Check if file is in format massanalysis (1) or ADST (2)
 int CheckFormat(char *infile)
@@ -384,11 +385,15 @@ int main(int argc, char **argv)
 	    i++;
 	 }
 	 // Multivariate analysis with TMVA
-	 else if( (strcmp("-m",argv[i]) == 0) || (strcmp("-mg",argv[i]) == 0) )
+	 else if( (strcmp("-m",argv[i]) == 0) || (strcmp("-mg",argv[i]) == 0) || (strcmp("-mgc",argv[i]) == 0) || (strcmp("-mc",argv[i]) == 0) )
 	 {
-	    if(strcmp("-mg",argv[i]) == 0)
+	    if( (strcmp("-mg",argv[i]) == 0) || (strcmp("-mgc",argv[i]) == 0) )
 	       mvatool->graphical = true;
-	    argtype = 2;
+
+	    if( (strcmp("-mgc",argv[i]) == 0) || (strcmp("-mc",argv[i]) == 0) )
+	       argtype = 3;
+	    else
+	       argtype = 2;
 	    cout << "Rewriting files and preparing for the multivariate analysis." << endl;
 
 	    cout << "Nr. of input files: " << argc-2 << endl;
@@ -604,7 +609,7 @@ int main(int argc, char **argv)
          delete aantool;
       }
    }
-   else if(argtype == 2)
+   else if( (argtype == 2) || (argtype == 3) )
    {
       delete mantool;
       delete aantool;
@@ -620,18 +625,21 @@ int main(int argc, char **argv)
 
       // Determine if a writeout to tmva.root is needed, or if only a TMVA analysis should be performed
       int writeAnalysis = -1;
-      if(mvatool->inname.size() == 0)
+      if( (mvatool->inname.size() == 0) || ((argtype == 3) && (mvatool->inname.size() == 1)) )
       {
-         cout << cyan << "No input files supplied. Only running a MVA analysis on the existing tmva.root." << def << endl;
+         if(mvatool->inname.size() == 0)
+            cout << cyan << "No input files supplied. Only running a MVA analysis on the existing tmva_rewrite.root." << def << endl;
+	 else
+	    cout << cyan << "No input files supplied. Only running a MVA analysis on the existing " << mvatool->inname[0] << def << endl;
 	 writeAnalysis = 1;
       }
       else
       {
-         cout << yellow << "Write out observables to tmva.root (0) or just create a MVA analysis on the existing tmva.root (1)? " << def;
+         cout << yellow << "Write out observables to tmva_rewrite.root (0), only create a MVA analysis on the existing tmva_rewrite.root (1) or only write out observables (2)? " << def;
          cin >> writeAnalysis;
-         while( (writeAnalysis != 0) && (writeAnalysis != 1) )
+         while( (writeAnalysis != 0) && (writeAnalysis != 1) && (writeAnalysis != 2) )
          {
-            cout << red << "Error: Please select a valid option. " << yellow << "Write out observables to tmva.root (0) or just create a MVA analysis on the existing tmva.root (1)? " << def;
+            cout << red << "Error: Please select a valid option. " << yellow << "Write out observables to tmva_rewrite.root (0), only create a MVA analysis on the existing tmva_rewrite.root (1) or only write out observables (2)? " << def;
             cin >> writeAnalysis;
          }
       }
@@ -643,7 +651,7 @@ int main(int argc, char **argv)
       }*/
 
       mvatool->outname = string(BASEDIR) + "/" + stemp;
-      if(writeAnalysis == 0)
+      if( (writeAnalysis == 0) || (writeAnalysis == 2) )
       {
          mvatool->outfile = TFile::Open((mvatool->outname).c_str(),"RECREATE");
 
@@ -651,22 +659,64 @@ int main(int argc, char **argv)
          Observables obssig, obsback;
          TTree *back_tree;
          back_tree = new TTree[mvatool->inname.size()];
+#ifdef OFFLINEOLD
          for(int i = 0; i < mvatool->inname.size(); i++)
-            back_tree[i].SetNameTitle(("TreeB" + IntToStr(i+1)).c_str(), ("Background tree without events from file " + mvatool->inname[i]).c_str());
+            back_tree[i].SetNameTitle(("TreeOldB" + IntToStr(i+1)).c_str(), ("Background tree without events from file " + mvatool->inname[i]).c_str());
          mvatool->all_tree = new TTree("TreeA", "Background tree with all events, including signal events.");
+#elif defined OFFLINENEW
+         mvatool->PrepareOtherTrees(mvatool->inname.size(), 1);
+         for(int i = 0; i < mvatool->inname.size(); i++)
+            back_tree[i].SetNameTitle(("TreeNewB" + IntToStr(i+1)).c_str(), ("Background tree without events from file " + mvatool->inname[i]).c_str());
+         mvatool->all_tree = new TTree("TreeA", "Background tree with all events, including signal events.");
+#endif
       
          // Start rewriting (for all input files)
          for(int i = 0; i < mvatool->inname.size(); i++)
             mvatool->RewriteObservables(i, obssig, obsback, back_tree);
 
-//       mvatool->back_tree->Write();
+#ifdef OFFLINEOLD
+         mvatool->PrepareOtherTrees(mvatool->inname.size(), 1);
          mvatool->all_tree->Write();
          for(int i = 0; i < mvatool->inname.size(); i++)
             back_tree[i].Write();
+         mvatool->PrepareOtherTrees(mvatool->inname.size(), 0);
+#elif defined OFFLINENEW
+         mvatool->all_tree->Write();
+         mvatool->PrepareOtherTrees(mvatool->inname.size(), 0);
+         for(int i = 0; i < mvatool->inname.size(); i++)
+            back_tree[i].Write();
+#endif
 
          // Close all open files
          mvatool->outfile->Close();
          mvatool->fFile->Close();
+
+         // If performing the MVA analysis straight away, rewrite the root file structure
+         if(writeAnalysis == 0)
+	 {
+            stemp = string(BASEDIR) + "/tmva_rewrite.root";
+            char *tmpfiles[3];
+            for(int i = 0; i < 3; i++) tmpfiles[i] = new char[1024];
+            sprintf(tmpfiles[0], "./combine");
+            sprintf(tmpfiles[1], "%s", stemp.c_str());
+            sprintf(tmpfiles[2], "%s", (mvatool->outname).c_str());
+            char **filesptr = tmpfiles;
+            hadd(3, filesptr);
+            mvatool->outname = stemp;
+	 }
+	 else if(writeAnalysis == 2)
+	 {
+            delete mvatool;
+	    return 0;
+         }
+      }
+      else
+      {
+         if( (argtype == 3) && (mvatool->inname.size() == 1) )
+            mvatool->outname = string(BASEDIR) + "/" + mvatool->inname[0];
+	 else
+            mvatool->outname = string(BASEDIR) + "/tmva_rewrite.root";
+
       }
 
       // Start performing the MVA analysis - TODO: make this working correctly

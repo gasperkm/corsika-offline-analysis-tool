@@ -42,6 +42,9 @@ AdstMva::AdstMva()
    fDetGeo = new DetectorGeometry();
    genshw = new GenShower();
    sdrecshw = new SdRecShower();
+#ifdef OFFLINENEW
+   unishw = new UnivRecShower();
+#endif
 
    outname = "tmva_output.root";
 
@@ -72,13 +75,24 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
 {
    string stemp, stemp2;
    int itemp;
+   bool singlerun = false;
    
    cout << "# Entering function AdstMva::RewriteObservables()..." << endl;
+
+   if(inname.size() == 1)
+   {
+      innr = 0;
+      singlerun = true;
+   }
 
    cout << "# New input file (" << inname[innr] << ") ---------------------------------" << endl;
 
    // Prepare signal and background trees (all = complete set of events, back = only events that are not signal)
-   stemp = "TreeS" + IntToStr(innr+1);
+#ifdef OFFLINEOLD
+   stemp = "TreeOldS" + IntToStr(innr+1);
+#elif defined OFFLINENEW
+   stemp = "TreeNewS" + IntToStr(innr+1);
+#endif
    stemp2 = "Signal tree from file " + inname[innr] + ".";
    
    sig_tree = new TTree(stemp.c_str(), stemp2.c_str());
@@ -231,6 +245,7 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
       back.ldfbeta = sdrecshw->GetBeta();
       back.curvature = sdrecshw->GetCurvature();
       back.risetime = sdrecshw->GetRiseTimeResults().GetRiseTime1000();
+      
       cout << "\t- Shower size (replacement for S1000) = " << sig.shwsize << endl
            << "\t- LDF Beta = " << sig.ldfbeta << endl
            << "\t- Curvature R = " << sig.curvature << endl
@@ -242,11 +257,16 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
 	 goodrec = false;
       }
 
-      // Go over the simulated events (Muon number at ground level)
+      // Go over the simulated events (Muon number at ground level) - only if we have simulations!
       *genshw = fRecEvent->GetGenShower();
       sig.nrmu = genshw->GetMuonNumber();
       back.nrmu = genshw->GetMuonNumber();
       cout << "\t- Nr. of muons = " << sig.nrmu << endl;
+
+#ifdef OFFLINENEW
+      // Go over simulation reconstruction (Muon number at ground level) - only if we have PAO data!
+//      *unishw = fRecEvent->UnivRecShower();
+#endif
 
       if(goodrec)
       {
@@ -262,6 +282,70 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
    }
 
    sig_tree->Write();
+}
+
+void AdstMva::PrepareOtherTrees(int nr, int sig)
+{
+   if(sig == 1)
+   {
+      Observables othersig;
+      TTree *other_sig_tree;
+      other_sig_tree = new TTree[nr];
+
+      for(int i = 0; i < nr; i++)
+      {
+#ifdef OFFLINEOLD
+         other_sig_tree[i].SetNameTitle(("TreeNewS" + IntToStr(i+1)).c_str(), "Signal tree from file new file");
+#elif defined OFFLINENEW
+         other_sig_tree[i].SetNameTitle(("TreeOldS" + IntToStr(i+1)).c_str(), "Signal tree from old file");
+#endif
+
+         other_sig_tree[i].Branch("xmax", &(othersig.xmax), "xmax/F");
+         other_sig_tree[i].Branch("x0", &(othersig.x0), "x0/F");
+         other_sig_tree[i].Branch("lambda", &(othersig.lambda), "lambda/F");
+         other_sig_tree[i].Branch("fdenergy", &(othersig.fdenergy), "fdenergy/F");
+         other_sig_tree[i].Branch("shfoot", &(othersig.shfoot), "shfoot/F");
+         other_sig_tree[i].Branch("shwsize", &(othersig.shwsize), "shwsize/F");
+         other_sig_tree[i].Branch("ldfbeta", &(othersig.ldfbeta), "ldfbeta/F");
+         other_sig_tree[i].Branch("curvature", &(othersig.curvature), "curvature/F");
+         other_sig_tree[i].Branch("nrmu", &(othersig.nrmu), "nrmu/F");
+         other_sig_tree[i].Branch("risetime", &(othersig.risetime), "risetime/F");
+
+//         other_sig_tree[i].Fill();
+
+         other_sig_tree[i].Write();
+      }
+   }
+   else if(sig == 0)
+   {
+      Observables otherback;
+      TTree *other_back_tree;
+      other_back_tree = new TTree[nr];
+
+      for(int i = 0; i < nr; i++)
+      {
+#ifdef OFFLINEOLD
+         other_back_tree[i].SetNameTitle(("TreeNewB" + IntToStr(i+1)).c_str(), "Background tree without events from new file");
+#elif defined OFFLINENEW
+         other_back_tree[i].SetNameTitle(("TreeOldB" + IntToStr(i+1)).c_str(), "Background tree without events from old file");
+#endif
+
+         other_back_tree[i].Branch("xmax", &(otherback.xmax), "xmax/F");
+         other_back_tree[i].Branch("x0", &(otherback.x0), "x0/F");
+         other_back_tree[i].Branch("lambda", &(otherback.lambda), "lambda/F");
+         other_back_tree[i].Branch("fdenergy", &(otherback.fdenergy), "fdenergy/F");
+         other_back_tree[i].Branch("shfoot", &(otherback.shfoot), "shfoot/F");
+         other_back_tree[i].Branch("shwsize", &(otherback.shwsize), "shwsize/F");
+         other_back_tree[i].Branch("ldfbeta", &(otherback.ldfbeta), "ldfbeta/F");
+         other_back_tree[i].Branch("curvature", &(otherback.curvature), "curvature/F");
+         other_back_tree[i].Branch("nrmu", &(otherback.nrmu), "nrmu/F");
+         other_back_tree[i].Branch("risetime", &(otherback.risetime), "risetime/F");
+
+//         other_back_tree[i].Fill();
+
+         other_back_tree[i].Write();
+      }
+   }
 }
 
 // Check for the eye with the longest FD track
