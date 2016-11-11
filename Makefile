@@ -9,8 +9,8 @@ INC=-I$(ROOTINC) -I$(IDIR) -I$(AUGEROFFLINEROOT)/include/adst
 LIB=-L. -L$(AUGEROFFLINEROOT)/lib
 LIBSO=-lRecEventKG -lAnalysisKG -lAugerEventIO -lAugerFramework -lAugerModules -lAugerTools -lAugerUtilities -lTMVA
 
-#CFILES=$(shell find -maxdepth 1 -name "*.cc")
-CFILES=$(SRCDIR)/analysis_tool.cc $(SRCDIR)/massanalyse.cc $(SRCDIR)/adstanalyse.cc $(SRCDIR)/adst_mva.cc $(SRCDIR)/combine_connection.cc
+#CFILES=$(SRCDIR)/analysis_tool.cc $(SRCDIR)/massanalyse.cc $(SRCDIR)/adstanalyse.cc $(SRCDIR)/adst_mva.cc $(SRCDIR)/combine_connection.cc
+CFILES=$(shell find $(SRCDIR)/ ! -name "combine.cc" ! -name "histogram_replot.cc" -name "*.cc")
 
 all: analysis_tool main_usage histogram_replot replot_usage rootadd rootadd_usage tmvacombine tmvacombine_usage tmvagui tmvagui_usage
 debug: analysis_tool_dbg main_usage
@@ -27,11 +27,15 @@ analysis_tool_debug: $(CFILES) $(IDIR)/analysis_tool.h
 main_usage:
 	@echo "\nUsage: ./analysis_tool [OPTIONS]"
 	@echo "[OPTIONS]:"
-	@echo "   -f [input ROOT analysis file]"
-	@echo "   -t [.tar.gz of multiple ROOT analysis files] (when using this option, the files inside the tar-ball"
-	@echo "      should not be in any folders)."
-	@echo "   -m [all ADST ROOT files used in multivariate analysis]"
-	@echo "   -mg [all ADST ROOT files used in multivariate analysis] (same as above, but with a GUI after traning MVA).\n"
+	@echo "   -f   [input ROOT analysis file]"
+	@echo "   -t   [.tar.gz of multiple ROOT analysis files] (when using this option, the files inside"
+	@echo "        the tar-ball should not be in any folders)."
+	@echo "   -m   [all ADST ROOT files used in multivariate analysis]"
+	@echo "   -mg  [all ADST ROOT files used in multivariate analysis] (same as above, but with a GUI"
+	@echo "        after traning MVA)."
+	@echo "   -mc  [filename where to save the output of MVA analysis]"
+	@echo "   -mgc [filename where to save the output if MVA analysis] (same as above, but with a GUI"
+	@echo "        after training MVA).\n"
 
 histogram_replot: $(SRCDIR)/histogram_replot.cc
 	@echo "\nCompiling Histogram replot program."

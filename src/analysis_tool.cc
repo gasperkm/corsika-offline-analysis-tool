@@ -756,6 +756,7 @@ int main(int argc, char **argv)
 
       // Open up the input file and ask which signal tree we want to check
       int whichAnalysis = -1;
+      
       signalName = "TreeS1";
 
       TFile *ifile = TFile::Open((mvatool->outname).c_str());
@@ -779,34 +780,88 @@ int main(int argc, char **argv)
          signalName = "TreeS" + IntToStr(whichAnalysis);
       }
 
+      vector<int> backtrees;
+      string backgroundName = "TreeS3";
+      int nrbacktrees = (ifile->GetNkeys()-1)/2;
+
+      if(nrbacktrees > 2)
+      {
+         cout << endl << cyan << "There are " << nrbacktrees-1 << " other signal trees available (" << signalName << " already taken as signal). How many trees should be taken as background (use 0, to skip and use simple background estimation instead)? " << def;
+	 cin >> nrbacktrees;
+
+	 if(nrbacktrees > 0)
+	 {
+	    cout << endl << cyan << "The available trees are:" << endl;
+	    for(int i = 1; i <= (ifile->GetNkeys()-1)/2; i++)
+	    {
+	       if(i != whichAnalysis)
+	       {
+                  backgroundName = "TreeS" + IntToStr(i);
+                  cout << "- " << i << ": " << ifile->GetKey(backgroundName.c_str())->GetTitle() << endl;
+	       }
+	    }
+	    for(int i = 1; i <= nrbacktrees; i++)
+	    {
+               cout << endl << yellow << "Select one of these to use as background: " << def;
+               cin >> itemp;
+	       backtrees.push_back(itemp);
+	       cout << "Currently selected trees for background: ";
+	       for(int j = 0; j < i; j++) cout << "TreeS" << backtrees[j] << ", ";
+	    }
+	    cout << endl;
+	 }
+	 else
+	    cout << "Swithcing to normal background estimation." << endl;
+      }
+      else
+         nrbacktrees = 0;
+
+      if(nrbacktrees < 1) nrbacktrees = 0;
+
       // Getting signal and background trees for training and testing (can supply multiple trees)
       TTree *signal = (TTree*)ifile->Get(signalName.c_str());
       cout << cyan << signalName << " selected as signal tree." << endl << def;
-      TTree *background;
+      TTree *background[nrbacktrees];
 
-      cout << endl << yellow << "Take all events as background (0) or only inverse events (1)? " << def;
-      cin >> itemp;
-      while( (itemp != 0) && (itemp != 1) )
+      if(nrbacktrees < 1)
       {
-         cout << red << "Error: Wrong selection. " << yellow << "Take all events as background (0) or only inverse events (1)? " << def;
+         cout << endl << yellow << "Take all events as background (0) or only inverse events (1)? " << def;
          cin >> itemp;
-      }
+         while( (itemp != 0) && (itemp != 1) )
+         {
+            cout << red << "Error: Wrong selection. " << yellow << "Take all events as background (0) or only inverse events (1)? " << def;
+            cin >> itemp;
+         }
 
-      if(itemp == 0)
-      {
-         background = (TTree*)ifile->Get("TreeA");
-         cout << cyan << "TreeA selected as background tree." << endl << def;
+         if(itemp == 0)
+         {
+            background[0] = (TTree*)ifile->Get("TreeA");
+            cout << cyan << "TreeA selected as background tree." << endl << def;
+         }
+         else if(itemp == 1)
+         {
+            signalName = "TreeB" + IntToStr(whichAnalysis);
+            background[0] = (TTree*)ifile->Get(signalName.c_str());
+            cout << cyan << signalName << " selected as background tree." << endl << def;
+         }
       }
-      else if(itemp == 1)
+      else
       {
-         signalName = "TreeB" + IntToStr(whichAnalysis);
-         background = (TTree*)ifile->Get(signalName.c_str());
-         cout << cyan << signalName << " selected as background tree." << endl << def;
+         for(int i = 0; i < nrbacktrees; i++)
+	 {
+	    backgroundName = "TreeS" + IntToStr(backtrees[i]);
+            background[i] = (TTree*)ifile->Get(backgroundName.c_str());
+            cout << cyan << backgroundName << " selected as background tree." << endl << def;
+	 }
       }
 
       // Add all the trees to the factory with overall weights for the complete sample
       factory->AddSignalTree(signal, 1.0);
-      factory->AddBackgroundTree(background, 1.0);
+      if(nrbacktrees < 2)
+         factory->AddBackgroundTree(background[0], 1.0);
+      else
+         for(int i = 0; i < nrbacktrees; i++)
+	    factory->AddBackgroundTree(background[i], 1.0);
 
       // Preparing and training from the trees:
       // - preselection cuts make cuts on input variables, before even starting the MVA
@@ -929,30 +984,74 @@ int main(int argc, char **argv)
       string mvamethod = (string)(applymva + " method");
       reader->BookMVA(mvamethod, signalName);
 
-// GKM
-FILE *fpsig = fopen((string(BASEDIR) + "/root_mva/plots/gkm_simple_signal.txt").c_str(),"w");			// signal + wrong back after MVA cut
-FILE *fpback = fopen((string(BASEDIR) + "/root_mva/plots/gkm_simple_back.txt").c_str(),"w");			// back + wrong signal after MVA cut
-FILE *fpsigstart = fopen((string(BASEDIR) + "/root_mva/plots/gkm_simple_signal_start.txt").c_str(),"w");	// signal before MVA cut
-FILE *fpbackstart = fopen((string(BASEDIR) + "/root_mva/plots/gkm_simple_back_start.txt").c_str(),"w");		// back before MVA cut
-FILE *fpall = fopen((string(BASEDIR) + "/root_mva/plots/gkm_simple_all.txt").c_str(),"w");			// signal + back
-int backval = 0, sigval = 0;
-// GKM
-
+/*      // GKM
+      FILE *fpsig = fopen((string(BASEDIR) + "/root_mva/plots/gkm_simple_signal.txt").c_str(),"w");			// signal + wrong back after MVA cut
+      FILE *fpback = fopen((string(BASEDIR) + "/root_mva/plots/gkm_simple_back.txt").c_str(),"w");			// back + wrong signal after MVA cut
+      FILE *fpsigstart = fopen((string(BASEDIR) + "/root_mva/plots/gkm_simple_signal_start.txt").c_str(),"w");	// signal before MVA cut
+      FILE *fpbackstart = fopen((string(BASEDIR) + "/root_mva/plots/gkm_simple_back_start.txt").c_str(),"w");		// back before MVA cut
+      FILE *fpall = fopen((string(BASEDIR) + "/root_mva/plots/gkm_simple_all.txt").c_str(),"w");			// signal + back
+      vector<int> backval, sigval;
+      for(int i = 0; i < nrbacktrees; i++)
+      {
+         backval.push_back(0);
+         sigval.push_back(0);
+      }
+      // GKM
+*/
       // Open the input file and prepare the TTree
       ifile = TFile::Open((mvatool->outname).c_str());
 
-      signalName = "TreeS" + IntToStr(whichAnalysis);
+// New
+      int evalTree;
+      cout << endl << cyan << "The available trees that can be evaluated by the analysis:" << endl;
+      for(int i = 1; i <= (ifile->GetNkeys()-1)/2; i++)
+      {
+         signalName = "TreeS" + IntToStr(i);
+         cout << "- " << i << ": " << ifile->GetKey(signalName.c_str())->GetTitle() << endl;
+      }
+      cout << endl << yellow << "Select the tree to evaluate (use -1 to evaluate all): " << def;
+      cin >> evalTree;
 
-      TTree *signalapp = (TTree*)ifile->Get(signalName.c_str());
+      if(evalTree == -1)
+      {
+         double cutmva;
+         cout << endl << yellow << "Select the cut to be performed on the MVA variable: " << def;
+         cin >> cutmva;
 
-      for(int i = 0; i < observables.size(); i++)
-         signalapp->SetBranchAddress((observables[i]).c_str(), &obsvars[i]);
+         for(int j = 1; j <= (ifile->GetNkeys()-1)/2; j++)
+	 {
+            signalName = "TreeS" + IntToStr(j);
+            cout << endl << cyan << signalName << " has been selected for evaluation." << endl;
 
-      double cutmva;
-      cout << yellow << "Select the cut to be performed on the MVA variable: " << def;
-      cin >> cutmva;
+            TTree *signalapp = (TTree*)ifile->Get(signalName.c_str());
 
-      for(int ievt=0; ievt < signalapp->GetEntries(); ievt++)
+            for(int i = 0; i < observables.size(); i++)
+               signalapp->SetBranchAddress((observables[i]).c_str(), &obsvars[i]);
+
+	    cout << def;
+            mvatool->CreateMVAPlots(cutmva, observables, signalapp, reader, mvamethod, obsvars, signalName);
+	    cout << def;
+	 }
+      }
+      else
+      {
+         signalName = "TreeS" + IntToStr(evalTree);
+         cout << endl << cyan << signalName << " has been selected for evaluation." << endl;
+
+         TTree *signalapp = (TTree*)ifile->Get(signalName.c_str());
+
+         for(int i = 0; i < observables.size(); i++)
+            signalapp->SetBranchAddress((observables[i]).c_str(), &obsvars[i]);
+
+         double cutmva;
+         cout << endl << yellow << "Select the cut to be performed on the MVA variable: " << def;
+         cin >> cutmva;
+
+         mvatool->CreateMVAPlots(cutmva, observables, signalapp, reader, mvamethod, obsvars, signalName);
+      }
+// New
+
+/*      for(int ievt=0; ievt < signalapp->GetEntries(); ievt++)
       {
          signalapp->GetEntry(ievt);
 
@@ -977,69 +1076,113 @@ int backval = 0, sigval = 0;
 	    fprintf(fpback, "%lf\n", reader->EvaluateMVA(mvamethod));
 
          if(reader->EvaluateMVA(mvamethod) >= cutmva)
-	    sigval++;
+	    sigval[0]++;
 	 else
-	    backval++;
+	    backval[0]++;
       } 
 
       ifile->Close();
 
-// GKM
-cout << cyan << "Signal TTree: There were " << sigval << " signal events and " << backval << " background events" << endl << def;
-// GKM
+      // GKM
+      cout << cyan << "Signal TTree: There were " << sigval[0] << " signal events and " << backval[0] << " background events" << endl << def;
+      // GKM
 
       ifile = TFile::Open((mvatool->outname).c_str());
-
-      signalName = "TreeB" + IntToStr(whichAnalysis);
-
-      TTree *backgroundapp = (TTree*)ifile->Get(signalName.c_str());
-
-      for(int i = 0; i < observables.size(); i++)
-         backgroundapp->SetBranchAddress((observables[i]).c_str(), &obsvars[i]);
-
-      backval = 0; sigval = 0;
-
-      for(int ievt=0; ievt < backgroundapp->GetEntries(); ievt++)
+      if(nrbacktrees < 2)
       {
-         backgroundapp->GetEntry(ievt);
+         signalName = "TreeB" + IntToStr(whichAnalysis);
+
+         TTree *backgroundapp = (TTree*)ifile->Get(signalName.c_str());
 
          for(int i = 0; i < observables.size(); i++)
-	 {
-	    fprintf(fpall, "%lf\t", obsvars[i]);
-	    fprintf(fpbackstart, "%lf\t", obsvars[i]);
+            backgroundapp->SetBranchAddress((observables[i]).c_str(), &obsvars[i]);
+
+         backval[0] = 0; sigval[0] = 0;
+
+         for(int ievt=0; ievt < backgroundapp->GetEntries(); ievt++)
+         {
+            backgroundapp->GetEntry(ievt);
+
+            for(int i = 0; i < observables.size(); i++)
+            {
+               fprintf(fpall, "%lf\t", obsvars[i]);
+               fprintf(fpbackstart, "%lf\t", obsvars[i]);
+
+               if(reader->EvaluateMVA(mvamethod) >= cutmva)
+                  fprintf(fpsig, "%lf\t", obsvars[i]);
+               else
+                  fprintf(fpback, "%lf\t", obsvars[i]);
+            }
+            fprintf(fpall, "%lf\n", reader->EvaluateMVA(mvamethod));
+            fprintf(fpbackstart, "%lf\n", reader->EvaluateMVA(mvamethod));
 
             if(reader->EvaluateMVA(mvamethod) >= cutmva)
-	       fprintf(fpsig, "%lf\t", obsvars[i]);
+               fprintf(fpsig, "%lf\n", reader->EvaluateMVA(mvamethod));
             else
-	       fprintf(fpback, "%lf\t", obsvars[i]);
+               fprintf(fpback, "%lf\n", reader->EvaluateMVA(mvamethod));
+
+            if(reader->EvaluateMVA(mvamethod) >= cutmva)
+               sigval[0]++;
+            else
+               backval[0]++;
+         } 
+      }
+      else
+      {
+         for(int i = 0; i < nrbacktrees; i++)
+	 {
+            backval[i] = 0; sigval[i] = 0;
+            backgroundName = "TreeS" + IntToStr(backtrees[i]);
+
+            TTree *backgroundapp = (TTree*)ifile->Get(backgroundName.c_str());
+
+            for(int i = 0; i < observables.size(); i++)
+               backgroundapp->SetBranchAddress((observables[i]).c_str(), &obsvars[i]);
+
+            for(int ievt=0; ievt < backgroundapp->GetEntries(); ievt++)
+            {
+               backgroundapp->GetEntry(ievt);
+
+               for(int i = 0; i < observables.size(); i++)
+               {
+                  fprintf(fpall, "%lf\t", obsvars[i]);
+                  fprintf(fpbackstart, "%lf\t", obsvars[i]);
+
+                  if(reader->EvaluateMVA(mvamethod) >= cutmva)
+                     fprintf(fpsig, "%lf\t", obsvars[i]);
+                  else
+                     fprintf(fpback, "%lf\t", obsvars[i]);
+               }
+               fprintf(fpall, "%lf\n", reader->EvaluateMVA(mvamethod));
+               fprintf(fpbackstart, "%lf\n", reader->EvaluateMVA(mvamethod));
+
+               if(reader->EvaluateMVA(mvamethod) >= cutmva)
+                  fprintf(fpsig, "%lf\n", reader->EvaluateMVA(mvamethod));
+               else
+                  fprintf(fpback, "%lf\n", reader->EvaluateMVA(mvamethod));
+
+               if(reader->EvaluateMVA(mvamethod) >= cutmva)
+                  sigval[i]++;
+               else
+                  backval[i]++;
+            } 
 	 }
-	 fprintf(fpall, "%lf\n", reader->EvaluateMVA(mvamethod));
-	 fprintf(fpbackstart, "%lf\n", reader->EvaluateMVA(mvamethod));
-
-         if(reader->EvaluateMVA(mvamethod) >= cutmva)
-	    fprintf(fpsig, "%lf\n", reader->EvaluateMVA(mvamethod));
-	 else
-	    fprintf(fpback, "%lf\n", reader->EvaluateMVA(mvamethod));
-
-         if(reader->EvaluateMVA(mvamethod) >= cutmva)
-	    sigval++;
-	 else
-	    backval++;
-      } 
-
+      }
+*/
       ifile->Close();
-
-// GKM
-cout << cyan << "Background TTree: There were " << sigval << " signal events and " << backval << " background events" << endl << def;
-fclose(fpsig);
-fclose(fpback);
-fclose(fpsigstart);
-fclose(fpbackstart);
-fclose(fpall);
-// GKM
-
+/*
+      // GKM
+      for(int i = 0; i < nrbacktrees; i++)
+         cout << cyan << "Background TTree: There were " << sigval[i] << " signal events and " << backval[i] << " background events" << endl << def;
+      fclose(fpsig);
+      fclose(fpback);
+      fclose(fpsigstart);
+      fclose(fpbackstart);
+      fclose(fpall);
+      // GKM
+*/
       cout << def << endl;
-      mvatool->CreateMVAPlots(cutmva, observables);
+//      mvatool->CreateMVAPlots(cutmva, observables);
 
       delete reader;
       delete mvatool;

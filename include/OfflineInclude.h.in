@@ -84,6 +84,9 @@
    #include "Traces.h"
    #include "TraceType.h"
    #include "UtilityFunctions.h"
+
+   // Created a symbolic link to this header found in the new offline version
+//   #include "UnivRecShower.h"
 #endif
 
 // From ADST new

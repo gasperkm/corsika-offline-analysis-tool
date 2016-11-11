@@ -12,6 +12,7 @@
 #include "TCanvas.h"
 #include "TH1.h"
 #include "TH2.h"
+#include "TF1.h"
 #include "TGraph.h"
 #include "TGraphErrors.h"
 #include "TGraphAsymmErrors.h"
@@ -44,6 +45,7 @@ public:
    virtual ~Observables();
 
    float xmax;		// depth of shower maximum
+//   float xmaxmu;	// depth of shower maximum for muons
    float x0;		// GH shape parameter X0 (0 is at first interaction point
    float lambda;	// GH shape parameter lambda
    float shfoot;	// Shower foot
@@ -64,10 +66,11 @@ public:
    // Rewrite
    void RewriteObservables(int innr, Observables sig, Observables back, TTree *back_tree);
    void PrepareOtherTrees(int nr, int sig);
-   void CreateMVAPlots(double cut, std::vector<std::string> obs);
-//   void SetPlotRange(TH1F *hist1, TH1F *hist2, double *xval, double *yval, double xrangeboost, double yrangeboost);
+//   void CreateMVAPlots(double cut, std::vector<std::string> obs);
+   void CreateMVAPlots(double cut, std::vector<std::string> obs, TTree *app, TMVA::Reader *reader, std::string mvamethod, float *obsvars, std::string signalName);
    void SetPlotRange(TNtuple *sig, TNtuple *back, TH1F *base, double *val, double rangeboost, std::string obs, char xory);
    void SetupAxis(TH1F *hist, std::string obs);
+   void SetupBinning(std::string obs, float *limit);
 
    // Reconstructed event variables (from the ADST format)
    RecEvent *fRecEvent;
@@ -97,6 +100,8 @@ public:
    int GetShowerFoot(int longestEye, std::vector<FDEvent> fdevt);
    double shfootlimit;
    double shfoot;
+   int GetRisetime(int event, double inRisetime, double *outRisetime);
+   void RiseTimeFunction(double zenith, double energy, TF1 *risetimeFit);
 
    // Boolean to say, if the reconstruction finished correctly
    bool goodrec;
