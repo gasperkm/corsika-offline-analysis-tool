@@ -206,7 +206,7 @@ void AdstAnalyseTool::Hello()
       }
       else if(filesel == 1)
       {
-         // TODO
+         // TODO: Multiple file analysis of profiles
          plotdirective = "-1";
       }
    }
@@ -546,86 +546,8 @@ int AdstAnalyseTool::RunDirective(int infilenr)
 
       return -1;
    }
-/*
-   // Run directive for the single file mode
-   // Plotting observables
-   if(analysistype == 1)
-   {
-      // Make 1D histogram
-      if(plotdirective.find(':') == string::npos)
-      {
-         if( itemp[0] == -1 )
-	    return -1;
-	 else
-	 {
-            // 1D histogram directly from observable
-	    stemp = dirtemp[0] + ">>" + "obs";
 
-	    if(directiveaffil[itemp[0]] == "showtankdata")
-               showtankdata->Draw(stemp.c_str());
-	    else if(directiveaffil[itemp[0]] == "showeyedata")
-               showeyedata->Draw(stemp.c_str());	// TODO: Still have to make a high limit for Xmax
-
-	    stemp = string(BASEDIR) + "/results/" + dirtemp[0] + ".pdf";
-	 }
-
-         histf = (TH1F*)gDirectory->Get("obs");
-	 dirtemp[0] = ";" + directivedesc[itemp[0]] + ";Number of events";
-	 histf->SetTitle(dirtemp[0].c_str());
-         histf->Draw();
-
-         c1->SaveAs(stemp.c_str());
-
-	 delete histf;
-         
-         return 0;
-      }
-      // Make 2D histogram
-      else
-      {
-         if( (itemp[0] == -1) || (itemp[1] == -1) )
-	    return -1;
-	 else
-	 {
-            // Compare SD observables between eachother
-	    if( (directiveaffil[itemp[0]] == "showtankdata") && (directiveaffil[itemp[1]] == "showtankdata") )
-	    {
-	       stemp = plotdirective + ">>" + "obs";
-               showtankdata->Draw(stemp.c_str());
-
-	       stemp = string(BASEDIR) + "/results/" + directive[itemp[0]] + "_" + directive[itemp[1]]+ ".pdf";
-	    }
-            // Compare FD observables between eachother
-	    else if( (directiveaffil[itemp[0]] == "showeyedata") && (directiveaffil[itemp[1]] == "showeyedata") )
-	    {
-	       stemp = plotdirective + ">>" + "obs";
-               showeyedata->Draw(stemp.c_str());
-
-	       stemp = string(BASEDIR) + "/results/" + directive[itemp[0]] + "_" + directive[itemp[1]]+ ".pdf";
-	    }
-	    else
-	    {
-	       cout << "Can only compare observables between tanks or between eyes, not mixed ones." << endl;
-	       return -1;
-	    }
-
-            gr = (TGraph*)gDirectory->Get("obs");
-            gr->SetMarkerStyle(20);
-            gr->SetMarkerSize(0.7);
-	    dirtemp[0] = ";" + directivedesc[itemp[1]] + ";" + directivedesc[itemp[0]];
-	    gr->SetTitle(dirtemp[0].c_str());
-            gr->Draw();
-            
-            c1->SaveAs(stemp.c_str());
-            
-            delete gr;
-	 }
-         
-         return 0;
-      }
-   }
-   // Plotting profiles
-   else*/ if(analysistype == 2)
+   if(analysistype == 2)
    {
       double *x, *xerr, *y, *yerr;
       // We are plotting the LDF profile
@@ -2269,7 +2191,6 @@ int AdstAnalyseTool::GetEyeLongestTrack()
    return itemp;
 }
 
-// TODO: Check if it works!
 void AdstAnalyseTool::SetRanges2D(int *seldir, double *inx, double *inxerr, double *iny, double *inyerr, int axis)
 {
    if(axis == 0)

@@ -469,7 +469,6 @@ int main(int argc, char **argv)
             aantool->InitRanges();
 	    aantool->evtcount = aantool->fFile->GetNEvents();
 
-	    // TODO: Multiple analysis
 	    for(int i = 0; i < aantool->evtcount; i++)
 	    {
 	       cout << "Event number = " << i << endl;
@@ -621,7 +620,7 @@ int main(int argc, char **argv)
       Color::Modifier def(Color::FG_DEFAULT);
 
       // Prepare output file
-      stemp = "tmva.root";
+      stemp = "analysis_out/tmva.root";
 
       // Determine if a writeout to tmva.root is needed, or if only a TMVA analysis should be performed
       int writeAnalysis = -1;
@@ -635,66 +634,82 @@ int main(int argc, char **argv)
       }
       else
       {
-         cout << yellow << "Write out observables to tmva_rewrite.root (0), only create a MVA analysis on the existing tmva_rewrite.root (1) or only write out observables (2)? " << def;
+         cout << yellow << "Write out observables to tmva_rewrite.root and perform analysis (0), only create a MVA analysis on the existing tmva_rewrite.root (1) or only write out observables (2)? " << def;
          cin >> writeAnalysis;
          while( (writeAnalysis != 0) && (writeAnalysis != 1) && (writeAnalysis != 2) )
          {
-            cout << red << "Error: Please select a valid option. " << yellow << "Write out observables to tmva_rewrite.root (0), only create a MVA analysis on the existing tmva_rewrite.root (1) or only write out observables (2)? " << def;
+            cout << red << "Error: Please select a valid option. " << yellow << "Write out observables to tmva_rewrite.root and perform analysis (0), only create a MVA analysis on the existing tmva_rewrite.root (1) or only write out observables (2)? " << def;
             cin >> writeAnalysis;
          }
       }
-/*
-      if((mvatool->inname.size() == 0) && (writeAnalysis == 0))
-      {
-         delete mvatool;
-         return -1;
-      }*/
+
+      // TODO: Add writeouts for (mean - error) and (mean + error)
 
       mvatool->outname = string(BASEDIR) + "/" + stemp;
       if( (writeAnalysis == 0) || (writeAnalysis == 2) )
       {
-         mvatool->outfile = TFile::Open((mvatool->outname).c_str(),"RECREATE");
-
-         // Prepare observable values for signal and background
          Observables obssig, obsback;
          TTree *back_tree;
-         back_tree = new TTree[mvatool->inname.size()];
+
+         for(int j = 0; j < 3; j++)
+	 {
+	    if(j == 0)
+               mvatool->outfile = TFile::Open((mvatool->outname).c_str(),"RECREATE");
+	    else if(j == 1)
+	    {
+               mvatool->outname = string(BASEDIR) + "/analysis_out/tmva_negerror.root";
+               mvatool->outfile = TFile::Open((mvatool->outname).c_str(),"RECREATE");
+	    }
+	    else if(j == 2)
+	    {
+               mvatool->outname = string(BASEDIR) + "/analysis_out/tmva_poserror.root";
+               mvatool->outfile = TFile::Open((mvatool->outname).c_str(),"RECREATE");
+	    }
+
+            // Prepare observable values for signal and background
+            back_tree = new TTree[mvatool->inname.size()];
 #ifdef OFFLINEOLD
-         for(int i = 0; i < mvatool->inname.size(); i++)
-            back_tree[i].SetNameTitle(("TreeOldB" + IntToStr(i+1)).c_str(), ("Background tree without events from file " + mvatool->inname[i]).c_str());
-         mvatool->all_tree = new TTree("TreeA", "Background tree with all events, including signal events.");
+            for(int i = 0; i < mvatool->inname.size(); i++)
+               back_tree[i].SetNameTitle(("TreeOldB" + IntToStr(i+1)).c_str(), ("Background tree without events from file " + mvatool->inname[i]).c_str());
+            mvatool->all_tree = new TTree("TreeA", "Background tree with all events, including signal events.");
 #elif defined OFFLINENEW
-         mvatool->PrepareOtherTrees(mvatool->inname.size(), 1);
-         for(int i = 0; i < mvatool->inname.size(); i++)
-            back_tree[i].SetNameTitle(("TreeNewB" + IntToStr(i+1)).c_str(), ("Background tree without events from file " + mvatool->inname[i]).c_str());
-         mvatool->all_tree = new TTree("TreeA", "Background tree with all events, including signal events.");
+            mvatool->PrepareOtherTrees(mvatool->inname.size(), 1);
+            for(int i = 0; i < mvatool->inname.size(); i++)
+               back_tree[i].SetNameTitle(("TreeNewB" + IntToStr(i+1)).c_str(), ("Background tree without events from file " + mvatool->inname[i]).c_str());
+            mvatool->all_tree = new TTree("TreeA", "Background tree with all events, including signal events.");
 #endif
       
-         // Start rewriting (for all input files)
-         for(int i = 0; i < mvatool->inname.size(); i++)
-            mvatool->RewriteObservables(i, obssig, obsback, back_tree);
+            // Start rewriting (for all input files)
+            for(int i = 0; i < mvatool->inname.size(); i++)
+               mvatool->RewriteObservables(i, obssig, obsback, back_tree, j);
 
 #ifdef OFFLINEOLD
-         mvatool->PrepareOtherTrees(mvatool->inname.size(), 1);
-         mvatool->all_tree->Write();
-         for(int i = 0; i < mvatool->inname.size(); i++)
-            back_tree[i].Write();
-         mvatool->PrepareOtherTrees(mvatool->inname.size(), 0);
+            mvatool->PrepareOtherTrees(mvatool->inname.size(), 1);
+            mvatool->all_tree->Write();
+            for(int i = 0; i < mvatool->inname.size(); i++)
+               back_tree[i].Write();
+            mvatool->PrepareOtherTrees(mvatool->inname.size(), 0);
 #elif defined OFFLINENEW
-         mvatool->all_tree->Write();
-         mvatool->PrepareOtherTrees(mvatool->inname.size(), 0);
-         for(int i = 0; i < mvatool->inname.size(); i++)
-            back_tree[i].Write();
+            mvatool->all_tree->Write();
+            mvatool->PrepareOtherTrees(mvatool->inname.size(), 0);
+            for(int i = 0; i < mvatool->inname.size(); i++)
+               back_tree[i].Write();
 #endif
 
-         // Close all open files
-         mvatool->outfile->Close();
-         mvatool->fFile->Close();
+            // Close all open files
+            mvatool->outfile->Close();
+            mvatool->fFile->Close();
+
+	    delete[] back_tree;
+	 }
+  
+         // again setup the outname, because we have written out the mean and error values to separate files
+         mvatool->outname = string(BASEDIR) + "/" + stemp;
 
          // If performing the MVA analysis straight away, rewrite the root file structure
          if(writeAnalysis == 0)
 	 {
-            stemp = string(BASEDIR) + "/tmva_rewrite.root";
+            stemp = string(BASEDIR) + "/analysis_out/tmva_rewrite.root";
             char *tmpfiles[3];
             for(int i = 0; i < 3; i++) tmpfiles[i] = new char[1024];
             sprintf(tmpfiles[0], "./combine");
@@ -715,12 +730,12 @@ int main(int argc, char **argv)
          if( (argtype == 3) && (mvatool->inname.size() == 1) )
             mvatool->outname = string(BASEDIR) + "/" + mvatool->inname[0];
 	 else
-            mvatool->outname = string(BASEDIR) + "/tmva_rewrite.root";
+            mvatool->outname = string(BASEDIR) + "/analysis_out/tmva_rewrite.root";
 
       }
 
-      // Start performing the MVA analysis - TODO: make this working correctly
-      stemp = string(BASEDIR) + "/tmva_output.root";
+      // Start performing the MVA analysis
+      stemp = string(BASEDIR) + "/analysis_out/tmva_output.root";
       TFile *ofile = TFile::Open(stemp.c_str(),"RECREATE");
       // Factory usage:
       // - user-defined job name, reappearing in names of weight files for training results ("TMVAClassification")
@@ -921,7 +936,7 @@ int main(int argc, char **argv)
 
       // Open the GUI to check for best MVA
       if(mvatool->graphical)
-         itemp = system("./tmvagui tmva_output.root");
+         itemp = system("./tmvagui analysis_out/tmva_output.root");
       cout << cyan << "Closing the GUI and continuing by applying the selected MVA to the data." << endl << def;
       
       // Perform classification application (only apply it, if one method has been selected!)

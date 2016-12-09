@@ -64,7 +64,7 @@ public:
    virtual ~AdstMva();
 
    // Rewrite
-   void RewriteObservables(int innr, Observables sig, Observables back, TTree *back_tree);
+   void RewriteObservables(int innr, Observables sig, Observables back, TTree *back_tree, int savetype);
    void PrepareOtherTrees(int nr, int sig);
 //   void CreateMVAPlots(double cut, std::vector<std::string> obs);
    void CreateMVAPlots(double cut, std::vector<std::string> obs, TTree *app, TMVA::Reader *reader, std::string mvamethod, float *obsvars, std::string signalName);
@@ -100,6 +100,8 @@ public:
    int GetShowerFoot(int longestEye, std::vector<FDEvent> fdevt);
    double shfootlimit;
    double shfoot;
+   double shfootmin;
+   double shfootmax;
    int GetRisetime(int event, double inRisetime, double *outRisetime);
    void RiseTimeFunction(double zenith, double energy, TF1 *risetimeFit);
 

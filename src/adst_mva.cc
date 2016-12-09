@@ -49,7 +49,7 @@ AdstMva::AdstMva()
    unishw = new UnivRecShower();
 #endif
 
-   outname = "tmva_output.root";
+   outname = "analysis_out/tmva_output.root";
 
    shfootlimit = 0.1;
 
@@ -74,7 +74,7 @@ AdstMva::~AdstMva()
 }
 // ------------------------------------------------------------------------------------------------------
 
-void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TTree *back_tree)
+void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TTree *back_tree, int savetype)
 {
    string stemp, stemp2;
    int itemp;
@@ -82,6 +82,13 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
    double dtemp;
    
    cout << "# Entering function AdstMva::RewriteObservables()..." << endl;
+
+   if(savetype == 0)
+      cout << "Rewriting observables for the observed value." << endl;
+   else if(savetype == 1)
+      cout << "Rewriting observables for the observed value minus the error." << endl;
+   else if(savetype == 2)
+      cout << "Rewriting observables for the observed value plus the error." << endl;
 
    if(inname.size() == 1)
    {
@@ -211,20 +218,66 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
 	 }
 	 else
 	 {
-            sig.xmax = acteyes[itemp].GetXmax();
-            sig.x0 = acteyes[itemp].GetX0();
-            sig.lambda = acteyes[itemp].GetLambda();
-            sig.fdenergy = acteyes[itemp].GetEnergy();
+	    // Write out for measured value
+            if(savetype == 0)
+	    {
+               sig.xmax = acteyes[itemp].GetXmax();
+               sig.x0 = acteyes[itemp].GetX0();
+               sig.lambda = acteyes[itemp].GetLambda();
+               sig.fdenergy = acteyes[itemp].GetEnergy();
 
-	    back.xmax = acteyes[itemp].GetXmax();
-            back.x0 = acteyes[itemp].GetX0();
-            back.lambda = acteyes[itemp].GetLambda();
-            back.fdenergy = acteyes[itemp].GetEnergy();
+	       back.xmax = acteyes[itemp].GetXmax();
+               back.x0 = acteyes[itemp].GetX0();
+               back.lambda = acteyes[itemp].GetLambda();
+               back.fdenergy = acteyes[itemp].GetEnergy();
+	    }
+	    // Write out for measured value minus error
+            else if(savetype == 1)
+	    {
+               sig.xmax = acteyes[itemp].GetXmax() - acteyes[itemp].GetXmaxError();
+               sig.x0 = acteyes[itemp].GetX0() - acteyes[itemp].GetX0Error();
+               sig.lambda = acteyes[itemp].GetLambda() - acteyes[itemp].GetLambdaError();
+               sig.fdenergy = acteyes[itemp].GetEnergy() - acteyes[itemp].GetEnergyError();
+
+	       back.xmax = acteyes[itemp].GetXmax() - acteyes[itemp].GetXmaxError();
+               back.x0 = acteyes[itemp].GetX0() - acteyes[itemp].GetX0Error();
+               back.lambda = acteyes[itemp].GetLambda() - acteyes[itemp].GetLambdaError();
+               back.fdenergy = acteyes[itemp].GetEnergy() - acteyes[itemp].GetEnergyError();
+	    }
+	    // Write out for measured value plus error
+            else if(savetype == 2)
+	    {
+               sig.xmax = acteyes[itemp].GetXmax() + acteyes[itemp].GetXmaxError();
+               sig.x0 = acteyes[itemp].GetX0() + acteyes[itemp].GetX0Error();
+               sig.lambda = acteyes[itemp].GetLambda() + acteyes[itemp].GetLambdaError();
+               sig.fdenergy = acteyes[itemp].GetEnergy() + acteyes[itemp].GetEnergyError();
+
+	       back.xmax = acteyes[itemp].GetXmax() + acteyes[itemp].GetXmaxError();
+               back.x0 = acteyes[itemp].GetX0() + acteyes[itemp].GetX0Error();
+               back.lambda = acteyes[itemp].GetLambda() + acteyes[itemp].GetLambdaError();
+               back.fdenergy = acteyes[itemp].GetEnergy() + acteyes[itemp].GetEnergyError();
+	    }
 
 	    if(GetShowerFoot(itemp, fdevt) == 0)
 	    {
-	       sig.shfoot = shfoot;
-	       back.shfoot = shfoot;
+	       // Write out for measured value
+               if(savetype == 0)
+	       {
+	          sig.shfoot = shfoot;
+	          back.shfoot = shfoot;
+	       }
+	       // Write out for measured value minus error
+               else if(savetype == 1)
+	       {
+	          sig.shfoot = shfootmin;
+	          back.shfoot = shfootmin;
+	       }
+	       // Write out for measured value plus error
+               else if(savetype == 2)
+	       {
+	          sig.shfoot = shfootmax;
+	          back.shfoot = shfootmax;
+	       }
 	    }
 
             cout << "Values to save: " << endl
@@ -260,14 +313,42 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
          goodrec = false;
       }
 
-      sig.shwsize = sdrecshw->GetShowerSize();
-      sig.ldfbeta = sdrecshw->GetBeta();
-      sig.curvature = sdrecshw->GetCurvature();
-      sig.risetime = sdrecshw->GetRiseTimeResults().GetRiseTime1000();
-      back.shwsize = sdrecshw->GetShowerSize();
-      back.ldfbeta = sdrecshw->GetBeta();
-      back.curvature = sdrecshw->GetCurvature();
-      back.risetime = sdrecshw->GetRiseTimeResults().GetRiseTime1000();
+      // Write out for measured value
+      if(savetype == 0)
+      {
+         sig.shwsize = sdrecshw->GetShowerSize();
+         sig.ldfbeta = sdrecshw->GetBeta();
+         sig.curvature = sdrecshw->GetCurvature();
+         sig.risetime = sdrecshw->GetRiseTimeResults().GetRiseTime1000();
+         back.shwsize = sdrecshw->GetShowerSize();
+         back.ldfbeta = sdrecshw->GetBeta();
+         back.curvature = sdrecshw->GetCurvature();
+         back.risetime = sdrecshw->GetRiseTimeResults().GetRiseTime1000();
+      }
+      // Write out for measured value minus error
+      else if(savetype == 1)
+      {
+         sig.shwsize = sdrecshw->GetShowerSize() - sdrecshw->GetShowerSizeError();
+         sig.ldfbeta = sdrecshw->GetBeta() - sdrecshw->GetBetaError();
+         sig.curvature = sdrecshw->GetCurvature() - sdrecshw->GetCurvatureError();
+         sig.risetime = sdrecshw->GetRiseTimeResults().GetRiseTime1000() - sdrecshw->GetRiseTimeResults().GetRiseTime1000Error();
+         back.shwsize = sdrecshw->GetShowerSize() - sdrecshw->GetShowerSizeError();
+         back.ldfbeta = sdrecshw->GetBeta() - sdrecshw->GetBetaError();
+         back.curvature = sdrecshw->GetCurvature() - sdrecshw->GetCurvatureError();
+         back.risetime = sdrecshw->GetRiseTimeResults().GetRiseTime1000() - sdrecshw->GetRiseTimeResults().GetRiseTime1000Error();
+      }
+      // Write out for measured value plus error
+      else if(savetype == 2)
+      {
+         sig.shwsize = sdrecshw->GetShowerSize() + sdrecshw->GetShowerSizeError();
+         sig.ldfbeta = sdrecshw->GetBeta() + sdrecshw->GetBetaError();
+         sig.curvature = sdrecshw->GetCurvature() + sdrecshw->GetCurvatureError();
+         sig.risetime = sdrecshw->GetRiseTimeResults().GetRiseTime1000() + sdrecshw->GetRiseTimeResults().GetRiseTime1000Error();
+         back.shwsize = sdrecshw->GetShowerSize() + sdrecshw->GetShowerSizeError();
+         back.ldfbeta = sdrecshw->GetBeta() + sdrecshw->GetBetaError();
+         back.curvature = sdrecshw->GetCurvature() + sdrecshw->GetCurvatureError();
+         back.risetime = sdrecshw->GetRiseTimeResults().GetRiseTime1000() + sdrecshw->GetRiseTimeResults().GetRiseTime1000Error();
+      }
       
       cout << "\t- Shower size (replacement for S1000) = " << sig.shwsize << endl
            << "\t- LDF Beta = " << sig.ldfbeta << endl
@@ -282,12 +363,28 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
       }
       else
       {
-         sig.risetime = dtemp;
-         back.risetime = dtemp;
+         // Write out for measured value
+         if(savetype == 0)
+         {
+            sig.risetime = dtemp;
+            back.risetime = dtemp;
+         }
+         // Write out for measured value minus error // TODO: Still need to add Risetime error calculation
+         else if(savetype == 1)
+         {
+            sig.risetime = dtemp;
+            back.risetime = dtemp;
+         }
+         // Write out for measured value plus error
+         else if(savetype == 2)
+         {
+            sig.risetime = dtemp;
+            back.risetime = dtemp;
+         }
 	 cout << "\t- Risetime (recalculated) = " << sig.risetime << endl;
       }
 
-      if(sig.risetime < 0) // TODO: For some reason, some of the Risetime results are -1 -> check why and maybe try to calculate them from actual VEM traces
+      if(sig.risetime < 0) // TODO: For some reason, some of the Risetime results are -1 -> check why and maybe try to calculate them from actual VEM traces (taken from /data0/gkukec/Programi/offline-trunk/v3r3/Modules/SdReconstruction/Risetime1000LLL/Risetime1000LLL.cc)
       {
          cout << "Error! Risetime not calculated. " << sdrecshw->GetRiseTimeResults().GetRiseTime1000() << endl;
 	 if(goodrec) recfail[6]++;
@@ -307,7 +404,7 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
 //      back.xmaxmu = genshw->GetXmaxMu();
 //      cout << "\t- Muon Xmax = " << sig.xmaxmu << endl;
 
-      // In case we have PAO data, calculate the number of muons at ground level
+/*      // In case we have PAO data, calculate the number of muons at ground level
       cout << "### Checking for muons from PAO data ###" << endl;
       vector<SdRecStation> stationVector = fRecEvent->GetSDEvent().GetStationVector();
       for(int i = 0; i < stationVector.size(); i++)
@@ -317,7 +414,7 @@ void AdstMva::RewriteObservables(int innr, Observables sig, Observables back, TT
          {
 	    cout << "station ID = " << stationVector[i].GetId() << ", muon component = " << stationVector[i].GetMuonComponent() << ", muon signal = " << stationVector[i].GetMuonSignal() << ", electron signal = " << stationVector[i].GetElectronSignal() << ", photon signal = " << stationVector[i].GetPhotonSignal() << endl;
 	 }
-      }
+      }*/
 #endif
 
       if(goodrec)
@@ -540,6 +637,8 @@ int AdstMva::GetShowerFoot(int longestEye, vector<FDEvent> fdevt)
 //	 cout << "Izr.2c: x = " << *x << ", y = " << *dtemp1 << ", x+Dx = " << *dtemp2 << ", x-Dx = " << *dtemp3 << ", Dx+ = " << (*dtemp2)-(*x) << ", Dx- = " << (*x)-(*dtemp3) << endl;
 
          shfoot = *x;
+         shfootmin = *dtemp3;
+         shfootmax = *dtemp2;
       }
    }
 
@@ -1451,13 +1550,13 @@ void AdstMva::SetupBinning(std::string obs, float *limit)
    }
    else if(obs == "x0")
    {
-      limit[0] = -500.;
-      limit[1] = 100.;
+      limit[0] = -550.;
+      limit[1] = 450.;
    }
    else if(obs == "lambda")
    {
-      limit[0] = 40.;
-      limit[1] = 80.;
+      limit[0] = 35.;
+      limit[1] = 135.;
    }
    else if(obs == "fdenergy")
    {
@@ -1472,12 +1571,12 @@ void AdstMva::SetupBinning(std::string obs, float *limit)
    else if(obs == "shwsize")
    {
       limit[0] = 0.;
-      limit[1] = 70.;
+      limit[1] = 170.;
    }
    else if(obs == "ldfbeta")
    {
-      limit[0] = -2.45;
-      limit[1] = -2.25;
+      limit[0] = -2.5;
+      limit[1] = -1.5;
    }
    else if(obs == "curvature")
    {
@@ -1487,17 +1586,17 @@ void AdstMva::SetupBinning(std::string obs, float *limit)
    else if(obs == "nrmu")
    {
       limit[0] = 0.;
-      limit[1] = 100.;
+      limit[1] = 90.e+6;
    }
    else if(obs == "risetime")
    {
       limit[0] = 0.;
-      limit[1] = 500.;
+      limit[1] = 650.;
    }
    else if(obs == "MVA")
    {
-      limit[0] = -0.5;
-      limit[1] = 1.5;
+      limit[0] = -2.;
+      limit[1] = 2.;
    }
    else
       return;
